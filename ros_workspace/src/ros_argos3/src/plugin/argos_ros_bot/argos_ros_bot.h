@@ -13,16 +13,27 @@
 #include <argos3/plugins/robots/generic/control_interface/ci_differential_steering_actuator.h>
 #include <argos3/plugins/robots/foot-bot/control_interface/ci_footbot_proximity_sensor.h>
 #include <argos3/plugins/robots/generic/control_interface/ci_colored_blob_omnidirectional_camera_sensor.h>
-//#include <argos3/plugins/robots/foot-bot/control_interface/ci_footbot_gripper_actuator.h>
+#include <argos3/plugins/robots/foot-bot/control_interface/ci_footbot_gripper_actuator.h>
 #include <argos3/plugins/robots/generic/control_interface/ci_leds_actuator.h>
 #include <argos3/plugins/robots/foot-bot/control_interface/ci_footbot_distance_scanner_sensor.h>
 #include <argos3/plugins/robots/foot-bot/control_interface/ci_footbot_distance_scanner_actuator.h>
+#include <argos3/plugins/robots/foot-bot/control_interface/ci_footbot_motor_ground_sensor.h>
+#include <argos3/plugins/robots/foot-bot/control_interface/ci_footbot_base_ground_sensor.h>
+#include <argos3/plugins/robots/generic/control_interface/ci_positioning_sensor.h>
+#include <argos3/plugins/robots/foot-bot/control_interface/ci_footbot_turret_encoder_sensor.h>
+#include <argos3/plugins/robots/foot-bot/control_interface/ci_footbot_turret_actuator.h>
 
 #include <ros/ros.h>
 #include <string>
 #include "geometry_msgs/Twist.h"
 #include "std_msgs/Bool.h"
+#include "std_msgs/Float32.h"
 #include "argos_bridge/LedsColor.h"
+#include "argos_bridge/MotoGround.h"
+#include "argos_bridge/MotoGroundList.h"
+#include "argos_bridge/BaseGround.h"
+#include "argos_bridge/BaseGroundList.h"
+#include "argos_bridge/Position.h"
 
 using namespace argos;
 
@@ -72,24 +83,31 @@ public:
   /*
    * The callback method for getting the desired state of the gripper.
    */
-//  void gripperCallback(const std_msgs::Bool& value);
+  void gripperCallback(const std_msgs::Bool& value);
 
   /*
-   * The callback method gor getting new commanded leds color
+   * The callback method for getting new commanded leds color
    */
   void ledsCallback(const argos_bridge::LedsColor color);
 
   void distScanAcrCallback(const std_msgs::Bool& value);
+
+  void turretAcrCallback(const std_msgs::Float32& rotation);
 
 private:
 
   CCI_DifferentialSteeringActuator* m_pcWheels;
   CCI_FootBotProximitySensor* m_pcProximity;
   CCI_ColoredBlobOmnidirectionalCameraSensor* m_pcOmniCam;
-//  CCI_FootBotGripperActuator* m_pcGripper;
+  CCI_FootBotGripperActuator* m_pcGripper;
   CCI_LEDsActuator* m_pcLeds;
   CCI_FootBotDistanceScannerSensor* m_pcDistScan;
   CCI_FootBotDistanceScannerActuator* m_pcDistScanAcr;
+  CCI_FootBotMotorGroundSensor* m_pcMotoGround;
+  CCI_FootBotBaseGroundSensor* m_pcBaseGround;
+  CCI_PositioningSensor* m_pcPosition;
+  CCI_FootBotTurretActuator* m_pcTurretAcr;
+  CCI_FootBotTurretEncoderSensor* m_pcTurretEncoder;
 
   // The following constant values were copied from the argos source tree from
   // the file src/plugins/robots/foot-bot/simulator/footbot_entity.cpp
@@ -116,7 +134,7 @@ private:
   Real leftSpeed, rightSpeed;
 
   // The state of the gripper.
-//  bool gripping;
+  bool gripping;
 
   // The state of distance scanner.
   bool distScanRun;
@@ -130,17 +148,32 @@ private:
   // Distanse scanne publisher
   ros::Publisher distScanPub;
 
+  // Motor ground colors publisher
+  ros::Publisher motoGroundPub;
+
+  // Base ground colors publisher
+  ros::Publisher baseGroundPub;
+
+  // Position and orientation publisher
+  ros::Publisher positionPub;
+
+  // Turret orientation publisher
+  ros::Publisher turretEncoderPub;
+
   // Subscriber for cmd_vel (Twist message) topic.
   ros::Subscriber cmdVelSub;
 
   // Subscriber for gripper (Bool message) topic.
-//  ros::Subscriber gripperSub;
+  ros::Subscriber gripperSub;
 
   // Subscriber for LEDs topic.
   ros::Subscriber ledsSub;
 
-  // Subscriber for distanse scanne controler topic.
+  // Subscriber for distanse scanne controller topic.
   ros::Subscriber distScanAcrSub;
+
+  // Subscriber for turret controller topic.
+  ros::Subscriber turretAcrSub;
 
 public:
   // We need only a single ROS node, although there are individual publishers

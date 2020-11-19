@@ -53,6 +53,12 @@ add_message_files(
   LedsColor.msg
   DistScan.msg
   DistScanList.msg
+  MotoGround.msg
+  MotoGroundList.msg
+  BaseGround.msg
+  BaseGroundList.msg
+  Vector3.msg
+  Position.msg
 )
 
 ## Generate services in the 'srv' folder
