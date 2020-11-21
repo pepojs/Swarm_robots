@@ -28,7 +28,15 @@ class ZoneColor(enum.Enum):
     BLUE = 2
     GREEN = 3
     YELLOW = 4
-       
+
+class PuckColor(enum.IntEnum):
+    UNRECOGNIZED = -2
+    NONPUCK = -1
+    RED = 0
+    BLUE = 1
+    GREEN = 2
+    YELLOW = 3
+    
 class Zone():
     def __init__(self):
         self.zoneColor = ZoneColor.BLACK
@@ -82,9 +90,7 @@ class TransportRobot:
         
         self.isInZone = False
         self.zone = Zone()
-        self.colorR = -1
-        self.colorG = -1
-        self.colorB = -1
+        self.puckColor = PuckColor.NONPUCK 
         
         self.pubMove = rospy.Publisher("/" + botName + "/cmd_vel", Twist, queue_size=10)
         self.pubGripper = rospy.Publisher("/" + botName + "/gripper", Bool, queue_size=10)
@@ -117,44 +123,23 @@ class TransportRobot:
         #self.zone.SetZoneNumber(1)
         #self.zone.SetIsInZoneFlage(True)
         #self.GetPositionAndOrientationInZone()
-        #self.EnterToZone(ZoneColor.BLACK)
-        #self.TakeNearestPuck()
-        #self.EscapeFromZone()
-        '''
-        for i in range(0,5):
-            self.RotateLeft()
-            self.RotateLeft()
-            self.MoveToForward()
-            self.MoveToForward()
-            self.RotateRight()
-            self.MoveToForward()
-            self.MoveToForward()
-            self.RotateRight()
-            self.RotateRight()
-            self.MoveToForward()
-            self.MoveToForward()
-            self.RotateLeft()
-            self.MoveToForward()
-            self.MoveToForward()
-        '''
-        #self.MoveToForward()
+        
+        self.EnterToZone(ZoneColor.BLACK)
+        self.TakeNearestPuck()
+        self.EscapeFromZone()
+          
         self.MoveToForward()
-        #self.RotateRight()
-        #self.MoveToForward()
-        #self.MoveToForward()
-        #self.EnterToZone(ZoneColor.RED)
-        '''
-        self.RotateLeft()
         self.MoveToForward()
-        self.RotateLeft()
         self.MoveToForward()
-        self.RotateLeft()
+        self.RotateRight()
         self.MoveToForward()
-        self.RotateLeft()
         self.MoveToForward()
-        self.RotateLeft()
         self.MoveToForward()
-        '''        
+        self.MoveToForward()
+        
+        self.EnterToZone(ZoneColor.RED)
+        #self.PutDownPuckOnPosition(-2.2, 2.2)
+                
 
     def callbackProximity(self, msg):
         #self.move.linear.x = 0.5
@@ -186,6 +171,9 @@ class TransportRobot:
     def callbackRobotStop(self, msg):
         self.robotStop = msg.data
 
+    def GetPuckColor(self):
+        return self.puckColor
+        
     def GetOrientationFromTag(self):
         if (self.motoGround[0].value > 0.49 and self.motoGround[0].value < 0.51) and \
            (self.motoGround[3].value > 0.44 and self.motoGround[3].value < 0.46):
@@ -532,7 +520,9 @@ class TransportRobot:
                     nearestPuck = i
                     minRange = puck.range
 
-        
+
+        self.SetPuckColor(puckListClone.pucks[nearestPuck].color)
+         
         puckAngle = puckListClone.pucks[nearestPuck].angle
         puckRange = puckListClone.pucks[nearestPuck].range*0.01
 
@@ -543,9 +533,20 @@ class TransportRobot:
 
         puckPositionX = self.zone.GetPositionInZoneX() + dX
         puckPositionY = self.zone.GetPositionInZoneY() + dY
-    
+        
         return [puckPositionX, puckPositionY]
 
+    def SetPuckColor(self, color):
+        if color.r == 255 and color.g == 0 and color.b == 0:
+            self.puckColor = PuckColor.RED
+        elif color.r == 0 and color.g == 255 and color.b == 0:
+            self.puckColor = PuckColor.GREEN
+        elif color.r == 0 and color.g == 0 and color.b == 255:
+            self.PuckColor = PuckColor.BLUE
+        elif color.r == 255 and color.g == 255 and color.b == 0:
+            self.PuckColor = PuckColor.YELLOW
+        else:
+            self.PuckColor = PuckColor.UNRECOGNIZED
 
     def CalculatePuckAngleAndRange(self, puckPositionX, puckPositionY):
         self.GetPositionAndOrientationInZone()
@@ -566,7 +567,7 @@ class TransportRobot:
     def EnterToZone(self, zoneColor: ZoneColor):
         self.zone.SetZoneColor(zoneColor)
         self.zone.SetIsInZoneFlage(True)
-
+        print(zoneColor)
         if zoneColor == ZoneColor.BLACK:
             
             if (self.motoGround[0].value >= 0.39 and self.motoGround[0].value <= 0.41) and \
@@ -576,10 +577,10 @@ class TransportRobot:
                 self.GetPositionAndOrientationInZone()
 
         if zoneColor == ZoneColor.RED:
-
+            print("Red")
             if(self.motoGround[0].value >= 0.34 and self.motoGround[0].value <= 0.36) and \
               (self.motoGround[3].value >= 0.39 and self.motoGround[3].value <= 0.41):
-
+                print("Red1")
                 self.zone.SetZoneNumber(1)
                 self.GetPositionAndOrientationInZone()
                 print("enter to red zone")
@@ -631,19 +632,23 @@ class TransportRobot:
                        #print("Not new position")
                        return
 
-                   centerSecondRange = 1.16297033496
-
+                   #centerSecondRange = 1.16297033496
+                   centerSecondRange = 0.525
+                   print(((centerSecondRange*centerSecondRange \
+                                      + centerLanternRange*centerLanternRange \
+                                      - secondLanternRange*secondLanternRange) \
+                                     /(2 *centerSecondRange*centerLanternRange)))
                    alpha = math.acos((centerSecondRange*centerSecondRange \
                                       + centerLanternRange*centerLanternRange \
                                       - secondLanternRange*secondLanternRange) \
                                      /(2 *centerSecondRange*centerLanternRange))
 
-                   self.zone.SetPositionInZoneY(-math.sin(alpha)*centerLanternRange)
-                   self.zone.SetPositionInZoneX(-math.cos(alpha)*centerLanternRange)
+                   self.zone.SetPositionInZoneY(2.4-math.sin(alpha)*centerLanternRange)
+                   self.zone.SetPositionInZoneX(-2.95+math.cos(alpha)*centerLanternRange)
                    print("position in zone x: ", self.zone.GetPositionInZoneX())
                    print("position in zone y: ", self.zone.GetPositionInZoneY())
             
-                   beta = math.asin(abs(self.zone.GetPositionInZoneY())/centerLanternRange)
+                   beta = math.asin(abs(2.4-self.zone.GetPositionInZoneY())/centerLanternRange)
                    self.zone.SetOrientationRad(centerLanternAngle - beta)
                    print("orientation to axis x: ", self.zone.GetOrientationRad())
                
@@ -790,6 +795,83 @@ class TransportRobot:
         escapeAngle = self.zone.GetOrientationRad() + alpha
         
         return [escapeAngle, range]
+
+
+    def PutDownPuckOnPosition(self, positionX, positionY):
+        [angle, range] = self.CalculateAngleAndRangeToPosition(positionX, positionY)
+
+        if not self.CheckPositionIsEmpty(angle, range):
+            return False
+
+        #Dodac przesunicie pozycji bo robot ma swoja grubosc 
+        run = True
+        while run and not self.robotStop:
+            [angle, range] = self.CalculateAngleAndRangeToPosition(positionX, positionY)
+            print("Angle: ", angle)
+            print("Range: ", range)
+                 
+            if range <= 0.2:
+                self.move.linear.x = 0
+                self.move.angular.z = 0
+                run = False
+                            
+            elif angle >= 0.05:
+                self.move.linear.x = 0
+                self.move.angular.z = 0.4
+
+            elif angle <= -0.05:
+                self.move.linear.x = 0
+                self.move.angular.z = -0.4
+                
+            elif angle >= 0.001:
+                self.move.linear.x = 0
+                self.move.angular.z = 0.01
+                            
+            elif angle <= -0.001:
+                self.move.linear.x = 0
+                self.move.angular.z = -0.01
+
+            elif range >= 0.22:
+                self.move.linear.x = 0.2
+                self.move.angular.z = 0
+
+            elif range >= 0.01:
+                self.move.linear.x = 0.01
+                self.move.angular.z = 0
+
+                
+            self.pubMove.publish(self.move)
+
+        self.gripper = False
+        self.pubGripper.publish(self.gripper)
+
+        if self.robotStop:
+            return False
+        
+        return True
+        
+
+    def CalculateAngleAndRangeToPosition(self, positionX, positionY):
+        self.GetPositionAndOrientationInZone()
+        
+        dX = self.zone.GetPositionInZoneX() - positionX
+        dY = self.zone.GetPositionInZoneY() - positionY
+        
+        range = math.sqrt(dX*dX + dY*dY)
+
+        alpha = math.asin(dY/range)
+
+        angle = self.zone.GetOrientationRad() - alpha
+        return [angle, range]
+
+    def CheckPositionIsEmpty(self, angle, range):
+        puckListClone = self.puckList
+
+        for puck in puckListClone.pucks:
+            if (puck.range - range) <= 0.01 and (puck.angle - angle) <= 0.001:
+                return False
+
+        return True
 
     
 def main():
