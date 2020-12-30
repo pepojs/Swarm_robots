@@ -1,0 +1,8 @@
+prefix=/home/piotr/Swarm_robots/ros_workspace/devel
+
+Name: testBot
+Description: Description of testBot
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: geometry_msgs sensor_msgs nav_msgs roscpp rospy

@@ -109,7 +109,9 @@ void CArgosRosBot::Init(TConfigurationNode& t_node) {
   //m_pcDistScanAcr->SetAngle(CRadians::PI_OVER_TWO);
   m_pcDistScanAcr->Enable();
   m_pcDistScanAcr->SetRPM(30);
+  //m_pcTurretAcr->SetMode(CCI_FootBotTurretActuator::ETurretModes::MODE_OFF);
   m_pcTurretAcr->SetPositionControlMode();
+  m_pcTurretAcr->SetActiveWithRotation(CRadians(0));
 
   /*
    * Parse the configuration file
@@ -264,13 +266,15 @@ void CArgosRosBot::gripperCallback(const std_msgs::Bool& value) {
   if (gripping && !value.data) {
     // Release the gripper
     m_pcGripper->Unlock();
-    gripping = true;
+    cout << "Gripper unlock" << endl;
+    gripping = false;
   }
 
   if (!gripping && value.data) {
     // Activate gripper
     m_pcGripper->LockPositive();
-    gripping = false;
+    cout << "Gripper lock" << endl;
+    gripping = true;
   }
 
   stepsSinceCallback = 0;
@@ -320,8 +324,9 @@ void CArgosRosBot::distScanAcrCallback(const std_msgs::Bool& value)
 
 void CArgosRosBot::turretAcrCallback(const std_msgs::Float32& rotation)
 {
-  cout << "turretAcrCallback: " << GetId() << endl;
+  cout << "turretAcrCallback: " << GetId() << " value: " << CRadians((rotation.data)) << endl;
   m_pcTurretAcr->SetRotation(CRadians((rotation.data)));
+  cout << "Set rotation" << endl;
 }
 
 

@@ -5,7 +5,7 @@
   <!-- ************************* -->
   <framework>
     <system threads="0"/>
-    <experiment length="0" ticks_per_second="6" random_seed="124"/>
+    <experiment length="0" ticks_per_second="15" random_seed="124"/>
   </framework>
 
   <!-- *************** -->
@@ -70,6 +70,27 @@
                  intensity="1.0"/>
       </leds>
     </box>
+    <box id="up_black_point" size="0.05, 0.05, 0.3" movable="false">
+      <body position="0.525,0,0" orientation="0,0,0"/>
+      <leds medium="leds">
+         <led offset="0,0,0.31" anchor="origin" color="magenta"
+                 intensity="1.0"/>
+      </leds>
+    </box>
+    <box id="left_black_point" size="0.05, 0.05, 0.3" movable="false">
+      <body position="0,0.525,0" orientation="0,0,0"/>
+      <leds medium="leds">
+         <led offset="0,0,0.31" anchor="origin" color="cyan"
+                 intensity="1.0"/>
+      </leds>
+    </box>
+    <box id="right_black_point" size="0.05, 0.05, 0.3" movable="false">
+      <body position="0,-0.525,0" orientation="0,0,0"/>
+      <leds medium="leds">
+         <led offset="0,0,0.31" anchor="origin" color="purple"
+                 intensity="1.0"/>
+      </leds>
+    </box>
 
     <box id="center_red_point" size="0.05, 0.05, 0.3" movable="false">
       <body position="-2.95,2.4,0" orientation="0,0,0"/>
@@ -79,9 +100,16 @@
       </leds>
     </box>
     <box id="down_red_point" size="0.05, 0.05, 0.3" movable="false">
-      <body position="-2.95,1.875,0" orientation="0,0,0"/>
+      <body position="-2.4,2.4,0" orientation="0,0,0"/>
       <leds medium="leds">
          <led offset="0,0,0.31" anchor="origin" color="brown"
+                 intensity="1.0"/>
+      </leds>
+    </box>
+    <box id="down2_red_point" size="0.05, 0.05, 0.3" movable="false">
+      <body position="-1.875,2.4,0" orientation="0,0,0"/>
+      <leds medium="leds">
+         <led offset="0,0,0.31" anchor="origin" color="purple"
                  intensity="1.0"/>
       </leds>
     </box>
@@ -90,9 +118,14 @@
         The robots.  The number given under 'quantity' below should match
         the value of 'n' in the launch file (e.g. the launch file created
         by 'launch_demo.sh').
-    --> <!-- -0.525 -->
-    <foot-bot id="bot">
-          <body position="-0.525,-0.3,0" orientation="0,0,0"/>
+    --> <!-- -0.525,-0.3 ; -1.875,2.7; -2.4,1.875; -0.3,0.525,0-->
+    <foot-bot id="bot1">
+          <body position="-0.3,0.525,0" orientation="-90,0,0"/>
+          <controller config="argos_ros_bot"/>
+    </foot-bot>
+
+    <foot-bot id="bot2">
+          <body position="0.525,0.3,0" orientation="-180,0,0"/>
           <controller config="argos_ros_bot"/>
     </foot-bot>
 
@@ -100,6 +133,14 @@
     <cylinder id="red_puck" height="0.1" radius="0.05" mass="0.1"
                   movable="true">
           <body position="-0.1,-0.1,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="red"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+    <cylinder id="red_puck2" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="-0.45,0.1,0" orientation="0,0,0"/>
           <leds medium="leds">
             <led offset="0,0,0.11" anchor="origin" color="red"
                  intensity="1.0"/>
@@ -188,7 +229,7 @@
   <!-- * Physics engines * -->
   <!-- ******************* -->
   <physics_engines>
-    <dynamics2d id="dyn2d" iterations="200"/>
+    <dynamics2d id="dyn2d" iterations="300"/>
     <!--<dynamics3d id="dyn3d" iterations="20">
       <floor height="0.00"/>
       <gravity g="9.8" />

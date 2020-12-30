@@ -1,0 +1,31 @@
+(cl:defpackage argos_bridge-msg
+  (:use )
+  (:export
+   "<BASEGROUND>"
+   "BASEGROUND"
+   "<BASEGROUNDLIST>"
+   "BASEGROUNDLIST"
+   "<DISTSCAN>"
+   "DISTSCAN"
+   "<DISTSCANLIST>"
+   "DISTSCANLIST"
+   "<LEDSCOLOR>"
+   "LEDSCOLOR"
+   "<MOTOGROUND>"
+   "MOTOGROUND"
+   "<MOTOGROUNDLIST>"
+   "MOTOGROUNDLIST"
+   "<POSITION>"
+   "POSITION"
+   "<PROXIMITY>"
+   "PROXIMITY"
+   "<PROXIMITYLIST>"
+   "PROXIMITYLIST"
+   "<PUCK>"
+   "PUCK"
+   "<PUCKLIST>"
+   "PUCKLIST"
+   "<VECTOR3>"
+   "VECTOR3"
+  ))
+

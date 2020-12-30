@@ -134,7 +134,7 @@ private:
   Real leftSpeed, rightSpeed;
 
   // The state of the gripper.
-  bool gripping;
+  int gripping;
 
   // The state of distance scanner.
   bool distScanRun;
