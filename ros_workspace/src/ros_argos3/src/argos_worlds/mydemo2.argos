@@ -5,7 +5,7 @@
   <!-- ************************* -->
   <framework>
     <system threads="0"/>
-    <experiment length="0" ticks_per_second="15" random_seed="124"/>
+    <experiment length="0" ticks_per_second="14" random_seed="124"/>
   </framework>
 
   <!-- *************** -->
@@ -229,7 +229,7 @@
   <!-- * Physics engines * -->
   <!-- ******************* -->
   <physics_engines>
-    <dynamics2d id="dyn2d" iterations="300"/>
+    <dynamics2d id="dyn2d" iterations="200"/>
     <!--<dynamics3d id="dyn3d" iterations="20">
       <floor height="0.00"/>
       <gravity g="9.8" />

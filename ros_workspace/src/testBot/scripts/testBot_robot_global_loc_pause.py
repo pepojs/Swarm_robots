@@ -91,7 +91,7 @@ class TransportRobot:
         rospy.Subscriber("/" + self.botName + "/turretEncoder", Float32, self.callbackTurretEncoder)
 
         while self.newPuckListMsg == False:
-            pass
+            rospy.sleep(0.01)
 
         rospy.Subscriber("/" + self.botName + "/robotController", String, self.callbackRobotController)
 
@@ -165,278 +165,14 @@ class TransportRobot:
 
         run = True
         while run and not self.robotStop:
-            if self.newPositionMsg:
-                self.newPositionMsg = False
+            [angle, range] = self.CalculateAngleAndRangeToPosition(x, y)
 
-                [angle, range] = self.CalculateAngleAndRangeToPosition(x, y)
+            if range < accuracyRange:
+                self.move.linear.x = 0
+                self.move.angular.z = 0
+                run = False
 
-                if range < accuracyRange:
-                    self.move.linear.x = 0
-                    self.move.angular.z = 0
-                    run = False
-
-                elif range > rangeCanDriveBackward:
-                    if angle > 0.1:
-                        self.move.linear.x = 0
-                        self.move.angular.z = -2.5 * SpeedScaleRot
-
-                    elif angle < -0.1:
-                        self.move.linear.x = 0
-                        self.move.angular.z = 2.5 * SpeedScaleRot
-
-                    elif angle > 0.03:
-                        self.move.linear.x = 0
-                        self.move.angular.z = -0.5 * SpeedScaleRot
-
-                    elif angle < -0.03:
-                        self.move.linear.x = 0
-                        self.move.angular.z = 0.5 * SpeedScaleRot
-
-                    elif angle > 0.01:
-                        self.move.linear.x = 0
-                        self.move.angular.z = -0.1 * SpeedScaleRot
-
-                    elif angle < -0.01:
-                        self.move.linear.x = 0
-                        self.move.angular.z = 0.1 * SpeedScaleRot
-
-                    elif range >= 0.05:
-                        self.move.linear.x = 2 * SpeedScale
-                        self.move.angular.z = 0
-
-                elif range <= rangeCanDriveBackward:
-
-                    if angle < 0.01 and angle > -0.01:
-                        self.move.angular.z = 0
-
-                        if range >= 0.1:
-                            self.move.linear.x = 2 * SpeedScale
-
-                        elif  range >= 0.05:
-                            self.move.linear.x = 1 * SpeedScale
-
-                        elif range >= 0.01:
-                            self.move.linear.x = 0.1 * SpeedScale
-
-                        elif range >= 0.001:
-                            self.move.linear.x = 0.05 * SpeedScale
-
-                    elif (angle > math.pi-0.01 and angle < math.pi+0.01
-                          or angle < -math.pi+0.01 and angle > -math.pi-0.01):
-                        self.move.angular.z = 0
-
-                        if range >= 0.1:
-                            self.move.linear.x = -2 * SpeedScale
-
-                        elif range >= 0.05:
-                            self.move.linear.x = -1 * SpeedScale
-
-                        elif range >= 0.01:
-                            self.move.linear.x = -0.1 * SpeedScale
-
-                        elif range >= 0.001:
-                            self.move.linear.x = -0.05 * SpeedScale
-
-
-                    elif angle >= 0.01 and angle < 0.03:
-                        self.move.linear.x = 0
-                        self.move.angular.z = -0.1 * SpeedScaleRot
-
-                    elif angle < -0.01 and angle > -0.03:
-                        self.move.linear.x = 0
-                        self.move.angular.z = 0.1 * SpeedScaleRot
-
-                    elif angle >= 0.03 and angle < 0.1:
-                        self.move.linear.x = 0
-                        self.move.angular.z = -0.5 * SpeedScaleRot
-
-                    elif angle <= -0.03 and angle > -0.1:
-                        self.move.linear.x = 0
-                        self.move.angular.z = 0.5 * SpeedScaleRot
-
-                    elif angle >= 0.1 and angle < math.pi/2:
-                        self.move.linear.x = 0
-                        self.move.angular.z = -2.5 * SpeedScaleRot
-
-                    elif angle <= -0.1 and angle > -math.pi/2:
-                        self.move.linear.x = 0
-                        self.move.angular.z = 2.5 * SpeedScaleRot
-
-                    elif angle <= math.pi-0.01 and angle >= math.pi-0.03 or angle < -math.pi-0.01 and angle >= -math.pi-0.03:
-                        self.move.linear.x = 0
-                        self.move.angular.z = 0.1 * SpeedScaleRot
-
-                    elif angle >= -math.pi+0.01 and angle <= -math.pi+0.03 or angle > math.pi+0.03 and angle <= math.pi+0.01:
-                        self.move.linear.x = 0
-                        self.move.angular.z = -0.1 * SpeedScaleRot
-
-                    elif angle <= math.pi-0.03 and angle > math.pi-0.1 or angle < -math.pi-0.03 and angle >= -math.pi-0.1:
-                        self.move.linear.x = 0
-                        self.move.angular.z = 0.5 * SpeedScaleRot
-
-                    elif angle >= -math.pi+0.03 and angle < -math.pi+0.1 or angle > math.pi+0.03 and angle <= math.pi+0.01:
-                        self.move.linear.x = 0
-                        self.move.angular.z = -0.5 * SpeedScaleRot
-
-                    elif angle <= math.pi-0.1 and angle >= math.pi/2 or angle < -math.pi-0.1 and angle >= -3*math.pi/2:
-                        self.move.linear.x = 0
-                        self.move.angular.z = 2.5 * SpeedScaleRot
-
-                    elif angle >= -math.pi+0.1 and angle <= -math.pi/2 or angle > math.pi+0.1 and angle <= 3*math.pi/2:
-                        self.move.linear.x = 0
-                        self.move.angular.z = -2.5 * SpeedScaleRot
-
-                self.pubMove.publish(self.move)
-
-        x = self.position.position.x
-        y = self.position.position.y
-        orientation = self.position.orientation.z
-
-        return x, y, orientation
-
-
-    def MoveToPositionEscapeZone(self, x, y, orientation, rangeCanDriveBackward, SpeedScale, SpeedScaleRot):
-
-        run = True
-        while run and not self.robotStop:
-            if self.newPositionMsg:
-                self.newPositionMsg = False
-
-                [angle, range] = self.CalculateAngleAndRangeToPosition(x, y)
-
-                if range < 0.01:
-                    self.move.linear.x = 0
-                    self.move.angular.z = 0
-                    run = False
-
-                elif range > rangeCanDriveBackward:
-                    if angle > 0.1:
-                        self.move.linear.x = 0
-                        self.move.angular.z = -2.5 * SpeedScaleRot
-
-                    elif angle < -0.1:
-                        self.move.linear.x = 0
-                        self.move.angular.z = 2.5 * SpeedScaleRot
-
-                    elif angle > 0.03:
-                        self.move.linear.x = 0
-                        self.move.angular.z = -0.5 * SpeedScaleRot
-
-                    elif angle < -0.03:
-                        self.move.linear.x = 0
-                        self.move.angular.z = 0.5 * SpeedScaleRot
-
-                    elif angle > 0.01:
-                        self.move.linear.x = 0
-                        self.move.angular.z = -0.1 * SpeedScaleRot
-
-                    elif angle < -0.01:
-                        self.move.linear.x = 0
-                        self.move.angular.z = 0.1 * SpeedScaleRot
-
-                    elif range >= 0.05:
-                        self.move.linear.x = 2 * SpeedScale
-                        self.move.angular.z = 0
-
-                elif range <= rangeCanDriveBackward:
-
-                    if angle < 0.01 and angle > -0.01:
-                        self.move.angular.z = 0
-
-                        if range >= 0.1:
-                            self.move.linear.x = 2 * SpeedScale
-
-                        elif range >= 0.05:
-                            self.move.linear.x = 1 * SpeedScale
-
-                        elif range >= 0.01:
-                            self.move.linear.x = 0.1 * SpeedScale
-
-                        elif range >= 0.001:
-                            self.move.linear.x = 0.05 * SpeedScale
-
-                    elif (angle > math.pi - 0.01 and angle < math.pi + 0.01
-                          or angle < -math.pi + 0.01 and angle > -math.pi - 0.01):
-                        self.move.angular.z = 0
-
-                        if range >= 0.1:
-                            self.move.linear.x = -2 * SpeedScale
-
-                        elif range >= 0.05:
-                            self.move.linear.x = -1 * SpeedScale
-
-                        elif range >= 0.01:
-                            self.move.linear.x = -0.1 * SpeedScale
-
-                        elif range >= 0.001:
-                            self.move.linear.x = -0.05 * SpeedScale
-
-
-                    elif angle >= 0.01 and angle < 0.03:
-                        self.move.linear.x = 0
-                        self.move.angular.z = -0.1 * SpeedScaleRot
-
-                    elif angle < -0.01 and angle > -0.03:
-                        self.move.linear.x = 0
-                        self.move.angular.z = 0.1 * SpeedScaleRot
-
-                    elif angle >= 0.03 and angle < 0.1:
-                        self.move.linear.x = 0
-                        self.move.angular.z = -0.5 * SpeedScaleRot
-
-                    elif angle <= -0.03 and angle > -0.1:
-                        self.move.linear.x = 0
-                        self.move.angular.z = 0.5 * SpeedScaleRot
-
-                    elif angle >= 0.1 and angle < math.pi / 2:
-                        self.move.linear.x = 0
-                        self.move.angular.z = -2.5 * SpeedScaleRot
-
-                    elif angle <= -0.1 and angle > -math.pi / 2:
-                        self.move.linear.x = 0
-                        self.move.angular.z = 2.5 * SpeedScaleRot
-
-                    elif angle <= math.pi - 0.01 and angle > math.pi - 0.03 or angle < -math.pi - 0.01 and angle >= -math.pi - 0.03:
-                        self.move.linear.x = 0
-                        self.move.angular.z = 0.1 * SpeedScaleRot
-
-                    elif angle >= -math.pi + 0.01 and angle < -math.pi + 0.03 or angle > math.pi + 0.03 and angle <= math.pi + 0.01:
-                        self.move.linear.x = 0
-                        self.move.angular.z = -0.1 * SpeedScaleRot
-
-                    elif angle <= math.pi - 0.03 and angle > math.pi - 0.1 or angle < -math.pi - 0.03 and angle >= -math.pi - 0.1:
-                        self.move.linear.x = 0
-                        self.move.angular.z = 0.5 * SpeedScaleRot
-
-                    elif angle >= -math.pi + 0.03 and angle < -math.pi + 0.1 or angle > math.pi + 0.03 and angle <= math.pi + 0.01:
-                        self.move.linear.x = 0
-                        self.move.angular.z = -0.5 * SpeedScaleRot
-
-                    elif angle <= math.pi - 0.1 and angle >= math.pi / 2 or angle < -math.pi - 0.1 and angle >= -3 * math.pi / 2:
-                        self.move.linear.x = 0
-                        self.move.angular.z = 2.5 * SpeedScaleRot
-
-                    elif angle >= -math.pi + 0.1 and angle <= -math.pi / 2 or angle > math.pi + 0.1 and angle <= 3 * math.pi / 2:
-                        self.move.linear.x = 0
-                        self.move.angular.z = -2.5 * SpeedScaleRot
-
-                self.pubMove.publish(self.move)
-
-        run = True
-        while run and not self.robotStop:
-            if self.newPositionMsg:
-                self.newPositionMsg = False
-
-                angle = self.position.orientation.z - orientation
-
-                if angle < -math.pi:
-                    angle = angle + 2 * math.pi
-
-                elif angle > math.pi:
-                    angle = angle - 2 * math.pi
-
-                #print('angle: {}, rob_ort: {}, finish_ort: {}'.format(angle, self.position.orientation.z, orientation))
-
+            elif range > rangeCanDriveBackward:
                 if angle > 0.1:
                     self.move.linear.x = 0
                     self.move.angular.z = -2.5 * SpeedScaleRot
@@ -461,12 +197,269 @@ class TransportRobot:
                     self.move.linear.x = 0
                     self.move.angular.z = 0.1 * SpeedScaleRot
 
-                elif angle <= 0.01 and angle >= -0.01:
-                    self.move.linear.x = 0
+                elif range >= 0.05:
+                    self.move.linear.x = 2 * SpeedScale
                     self.move.angular.z = 0
-                    run = False
 
-                self.pubMove.publish(self.move)
+            elif range <= rangeCanDriveBackward:
+
+                if angle < 0.01 and angle > -0.01:
+                    self.move.angular.z = 0
+
+                    if range >= 0.1:
+                        self.move.linear.x = 2 * SpeedScale
+
+                    elif  range >= 0.05:
+                        self.move.linear.x = 1 * SpeedScale
+
+                    elif range >= 0.01:
+                        self.move.linear.x = 0.1 * SpeedScale
+
+                    elif range >= 0.001:
+                        self.move.linear.x = 0.05 * SpeedScale
+
+                elif (angle > math.pi-0.01 and angle < math.pi+0.01
+                      or angle < -math.pi+0.01 and angle > -math.pi-0.01):
+                    self.move.angular.z = 0
+
+                    if range >= 0.1:
+                        self.move.linear.x = -2 * SpeedScale
+
+                    elif range >= 0.05:
+                        self.move.linear.x = -1 * SpeedScale
+
+                    elif range >= 0.01:
+                        self.move.linear.x = -0.1 * SpeedScale
+
+                    elif range >= 0.001:
+                        self.move.linear.x = -0.05 * SpeedScale
+
+
+                elif angle >= 0.01 and angle < 0.03:
+                    self.move.linear.x = 0
+                    self.move.angular.z = -0.1 * SpeedScaleRot
+
+                elif angle < -0.01 and angle > -0.03:
+                    self.move.linear.x = 0
+                    self.move.angular.z = 0.1 * SpeedScaleRot
+
+                elif angle >= 0.03 and angle < 0.1:
+                    self.move.linear.x = 0
+                    self.move.angular.z = -0.5 * SpeedScaleRot
+
+                elif angle <= -0.03 and angle > -0.1:
+                    self.move.linear.x = 0
+                    self.move.angular.z = 0.5 * SpeedScaleRot
+
+                elif angle >= 0.1 and angle < math.pi/2:
+                    self.move.linear.x = 0
+                    self.move.angular.z = -2.5 * SpeedScaleRot
+
+                elif angle <= -0.1 and angle > -math.pi/2:
+                    self.move.linear.x = 0
+                    self.move.angular.z = 2.5 * SpeedScaleRot
+
+                elif angle <= math.pi-0.01 and angle >= math.pi-0.03 or angle < -math.pi-0.01 and angle >= -math.pi-0.03:
+                    self.move.linear.x = 0
+                    self.move.angular.z = 0.1 * SpeedScaleRot
+
+                elif angle >= -math.pi+0.01 and angle <= -math.pi+0.03 or angle > math.pi+0.03 and angle <= math.pi+0.01:
+                    self.move.linear.x = 0
+                    self.move.angular.z = -0.1 * SpeedScaleRot
+
+                elif angle <= math.pi-0.03 and angle > math.pi-0.1 or angle < -math.pi-0.03 and angle >= -math.pi-0.1:
+                    self.move.linear.x = 0
+                    self.move.angular.z = 0.5 * SpeedScaleRot
+
+                elif angle >= -math.pi+0.03 and angle < -math.pi+0.1 or angle > math.pi+0.03 and angle <= math.pi+0.01:
+                    self.move.linear.x = 0
+                    self.move.angular.z = -0.5 * SpeedScaleRot
+
+                elif angle <= math.pi-0.1 and angle >= math.pi/2 or angle < -math.pi-0.1 and angle >= -3*math.pi/2:
+                    self.move.linear.x = 0
+                    self.move.angular.z = 2.5 * SpeedScaleRot
+
+                elif angle >= -math.pi+0.1 and angle <= -math.pi/2 or angle > math.pi+0.1 and angle <= 3*math.pi/2:
+                    self.move.linear.x = 0
+                    self.move.angular.z = -2.5 * SpeedScaleRot
+
+            self.pubMove.publish(self.move)
+            rospy.sleep(0.02)
+
+        x = self.position.position.x
+        y = self.position.position.y
+        orientation = self.position.orientation.z
+
+        return x, y, orientation
+
+    def MoveToPositionEscapeZone(self, x, y, orientation, rangeCanDriveBackward, SpeedScale, SpeedScaleRot):
+
+        run = True
+        while run and not self.robotStop:
+            [angle, range] = self.CalculateAngleAndRangeToPosition(x, y)
+
+            if range < 0.01:
+                self.move.linear.x = 0
+                self.move.angular.z = 0
+                run = False
+
+            elif range > rangeCanDriveBackward:
+                if angle > 0.1:
+                    self.move.linear.x = 0
+                    self.move.angular.z = -2.5 * SpeedScaleRot
+
+                elif angle < -0.1:
+                    self.move.linear.x = 0
+                    self.move.angular.z = 2.5 * SpeedScaleRot
+
+                elif angle > 0.03:
+                    self.move.linear.x = 0
+                    self.move.angular.z = -0.5 * SpeedScaleRot
+
+                elif angle < -0.03:
+                    self.move.linear.x = 0
+                    self.move.angular.z = 0.5 * SpeedScaleRot
+
+                elif angle > 0.01:
+                    self.move.linear.x = 0
+                    self.move.angular.z = -0.1 * SpeedScaleRot
+
+                elif angle < -0.01:
+                    self.move.linear.x = 0
+                    self.move.angular.z = 0.1 * SpeedScaleRot
+
+                elif range >= 0.05:
+                    self.move.linear.x = 2 * SpeedScale
+                    self.move.angular.z = 0
+
+            elif range <= rangeCanDriveBackward:
+
+                if angle < 0.01 and angle > -0.01:
+                    self.move.angular.z = 0
+
+                    if range >= 0.1:
+                        self.move.linear.x = 2 * SpeedScale
+
+                    elif range >= 0.05:
+                        self.move.linear.x = 1 * SpeedScale
+
+                    elif range >= 0.01:
+                        self.move.linear.x = 0.1 * SpeedScale
+
+                    elif range >= 0.001:
+                        self.move.linear.x = 0.05 * SpeedScale
+
+                elif (angle > math.pi - 0.01 and angle < math.pi + 0.01
+                      or angle < -math.pi + 0.01 and angle > -math.pi - 0.01):
+                    self.move.angular.z = 0
+
+                    if range >= 0.1:
+                        self.move.linear.x = -2 * SpeedScale
+
+                    elif range >= 0.05:
+                        self.move.linear.x = -1 * SpeedScale
+
+                    elif range >= 0.01:
+                        self.move.linear.x = -0.1 * SpeedScale
+
+                    elif range >= 0.001:
+                        self.move.linear.x = -0.05 * SpeedScale
+
+
+                elif angle >= 0.01 and angle < 0.03:
+                    self.move.linear.x = 0
+                    self.move.angular.z = -0.1 * SpeedScaleRot
+
+                elif angle < -0.01 and angle > -0.03:
+                    self.move.linear.x = 0
+                    self.move.angular.z = 0.1 * SpeedScaleRot
+
+                elif angle >= 0.03 and angle < 0.1:
+                    self.move.linear.x = 0
+                    self.move.angular.z = -0.5 * SpeedScaleRot
+
+                elif angle <= -0.03 and angle > -0.1:
+                    self.move.linear.x = 0
+                    self.move.angular.z = 0.5 * SpeedScaleRot
+
+                elif angle >= 0.1 and angle < math.pi / 2:
+                    self.move.linear.x = 0
+                    self.move.angular.z = -2.5 * SpeedScaleRot
+
+                elif angle <= -0.1 and angle > -math.pi / 2:
+                    self.move.linear.x = 0
+                    self.move.angular.z = 2.5 * SpeedScaleRot
+
+                elif angle <= math.pi - 0.01 and angle > math.pi - 0.03 or angle < -math.pi - 0.01 and angle >= -math.pi - 0.03:
+                    self.move.linear.x = 0
+                    self.move.angular.z = 0.1 * SpeedScaleRot
+
+                elif angle >= -math.pi + 0.01 and angle < -math.pi + 0.03 or angle > math.pi + 0.03 and angle <= math.pi + 0.01:
+                    self.move.linear.x = 0
+                    self.move.angular.z = -0.1 * SpeedScaleRot
+
+                elif angle <= math.pi - 0.03 and angle > math.pi - 0.1 or angle < -math.pi - 0.03 and angle >= -math.pi - 0.1:
+                    self.move.linear.x = 0
+                    self.move.angular.z = 0.5 * SpeedScaleRot
+
+                elif angle >= -math.pi + 0.03 and angle < -math.pi + 0.1 or angle > math.pi + 0.03 and angle <= math.pi + 0.01:
+                    self.move.linear.x = 0
+                    self.move.angular.z = -0.5 * SpeedScaleRot
+
+                elif angle <= math.pi - 0.1 and angle >= math.pi / 2 or angle < -math.pi - 0.1 and angle >= -3 * math.pi / 2:
+                    self.move.linear.x = 0
+                    self.move.angular.z = 2.5 * SpeedScaleRot
+
+                elif angle >= -math.pi + 0.1 and angle <= -math.pi / 2 or angle > math.pi + 0.1 and angle <= 3 * math.pi / 2:
+                    self.move.linear.x = 0
+                    self.move.angular.z = -2.5 * SpeedScaleRot
+
+            self.pubMove.publish(self.move)
+            rospy.sleep(0.02)
+
+        run = True
+        while run and not self.robotStop:
+            angle = self.position.orientation.z - orientation
+
+            if angle < -math.pi:
+                angle = angle + 2 * math.pi
+
+            elif angle > math.pi:
+                angle = angle - 2 * math.pi
+
+            #print('angle: {}, rob_ort: {}, finish_ort: {}'.format(angle, self.position.orientation.z, orientation))
+
+            if angle > 0.1:
+                self.move.linear.x = 0
+                self.move.angular.z = -2.5 * SpeedScaleRot
+
+            elif angle < -0.1:
+                self.move.linear.x = 0
+                self.move.angular.z = 2.5 * SpeedScaleRot
+
+            elif angle > 0.03:
+                self.move.linear.x = 0
+                self.move.angular.z = -0.5 * SpeedScaleRot
+
+            elif angle < -0.03:
+                self.move.linear.x = 0
+                self.move.angular.z = 0.5 * SpeedScaleRot
+
+            elif angle > 0.01:
+                self.move.linear.x = 0
+                self.move.angular.z = -0.1 * SpeedScaleRot
+
+            elif angle < -0.01:
+                self.move.linear.x = 0
+                self.move.angular.z = 0.1 * SpeedScaleRot
+
+            elif angle <= 0.01 and angle >= -0.01:
+                self.move.linear.x = 0
+                self.move.angular.z = 0
+                run = False
+
+            self.pubMove.publish(self.move)
+            rospy.sleep(0.02)
 
         x = self.position.position.x
         y = self.position.position.y
@@ -505,7 +498,7 @@ class TransportRobot:
         if puckPositionX == 1 and puckPositionY == 1:
             return PuckColor.NONPUCK
 
-        self.MoveToPosition(puckPositionX, puckPositionY, 0.05, 0.14, 1, 1)
+        self.MoveToPosition(puckPositionX, puckPositionY, 0.05, 0.16, 1, 1)
 
         self.gripper = True
         self.pubGripper.publish(self.gripper)

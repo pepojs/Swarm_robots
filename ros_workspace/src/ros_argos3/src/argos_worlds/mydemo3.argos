@@ -5,7 +5,7 @@
   <!-- ************************* -->
   <framework>
     <system threads="0"/>
-    <experiment length="0" ticks_per_second="10" random_seed="124"/> <!-- tps=14 -->
+    <experiment length="0" ticks_per_second="11" random_seed="124"/> <!-- tps=14 -->
   </framework>
 
   <!-- *************** -->
@@ -33,7 +33,7 @@
       </sensors>
       <!-- After the following number of time steps without receiving a
            commanded velocity, the robots will stop. -->
-      <params stopWithoutSubscriberCount="10" />
+      <params stopWithoutSubscriberCount="10" /> <!-- 10 -->
     </argos_ros_bot_controller_lit>
   </controllers>
 
@@ -80,7 +80,38 @@
           <body position="-0.525,-0.3,0" orientation="0,0,0"/>
           <controller config="argos_ros_bot_lit"/>
     </foot-bot>
-
+    <foot-bot id="bot5">
+          <body position="0.3,1.8,0" orientation="-90,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+    <foot-bot id="bot6">
+          <body position="1.8,0.3,0" orientation="-180,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+    <foot-bot id="bot7">
+          <body position="-0.3,-1.8,0" orientation="-270,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+    <foot-bot id="bot8">
+          <body position="-1.8,0.3,0" orientation="0,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+    <foot-bot id="bot9">
+          <body position="-0.75,2.7,0" orientation="-90,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+    <foot-bot id="bot10">
+          <body position="2.85,0.75,0" orientation="-180,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+    <foot-bot id="bot11">
+          <body position="0.75,-2.7,0" orientation="-270,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+    <foot-bot id="bot12">
+          <body position="-2.85,-0.75,0" orientation="0,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
 
     <cylinder id="red_puck" height="0.1" radius="0.05" mass="0.1"
                   movable="true">
@@ -90,9 +121,41 @@
                  intensity="1.0"/>
           </leds>
     </cylinder>
+    <cylinder id="red_puck1" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="0.15,-0.2,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="red"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+    <cylinder id="red_puck2" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="0.3,0.3,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="red"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
     <cylinder id="blue_puck" height="0.1" radius="0.05" mass="0.1"
                   movable="true">
           <body position="-0.45,0.1,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="blue"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+    <cylinder id="blue_puck1" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="0.3,0.45,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="blue"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+    <cylinder id="blue_puck2" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="-0.3,-0.40,0" orientation="0,0,0"/>
           <leds medium="leds">
             <led offset="0,0,0.11" anchor="origin" color="blue"
                  intensity="1.0"/>
@@ -107,10 +170,42 @@
                  intensity="1.0"/>
           </leds>
     </cylinder>
+    <cylinder id="green_puck1" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="-0.3,-0.25,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="green"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+    <cylinder id="green_puck2" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="-0.45,0.27,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="green"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
 
     <cylinder id="yellow_puck" height="0.1" radius="0.05" mass="0.1"
                   movable="true">
           <body position="0.3,-0.27,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="yellow"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+    <cylinder id="yellow_puck1" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="-0.3, 0.27,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="yellow"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+    <cylinder id="yellow_puck2" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="0.05, -0.5,0" orientation="0,0,0"/>
           <leds medium="leds">
             <led offset="0,0,0.11" anchor="origin" color="yellow"
                  intensity="1.0"/>
@@ -199,7 +294,7 @@
   <!-- * Physics engines * -->
   <!-- ******************* -->
   <physics_engines>
-    <dynamics2d id="dyn2d" iterations="270"/> <!-- iter = 270 -->
+    <dynamics2d id="dyn2d" iterations="220"/> <!-- iter = 270 -->
     <!--<dynamics3d id="dyn3d" iterations="20">
       <floor height="0.00"/>
       <gravity g="9.8" />
@@ -222,7 +317,7 @@
     <qt-opengl lua_editor="false">
 	<camera>
 	<placement idx="0"
-                   position="0,0,2.5"
+                   position="0,0,4.5"
 		   up="1,0,0"                    
  		   look_at="0,0,0"
                    lens_focal_length="20" />

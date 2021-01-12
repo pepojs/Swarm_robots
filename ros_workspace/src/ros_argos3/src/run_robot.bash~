@@ -1,0 +1,10 @@
+#!/bin/bash
+
+rosrun testBot testBot_robot_global_loc_in_callback.py 1 &
+rosrun testBot testBot_robot_global_loc_in_callback.py 2 &
+rosrun testBot testBot_robot_global_loc_in_callback.py 3 &
+rosrun testBot testBot_robot_global_loc_in_callback.py 4 &
+rosrun testBot testBot_robot_global_loc_in_callback.py 5 &
+rosrun testBot testBot_robot_global_loc_in_callback.py 6 &
+rosrun testBot testBot_robot_global_loc_in_callback.py 7 &
+rosrun testBot testBot_robot_global_loc_in_callback.py 8

@@ -4,7 +4,9 @@ import json
 import sys
 import enum
 import math
-from queue import PriorityQueue
+import numpy as np
+import heapq
+
 
 import rospy
 from std_msgs.msg import String
@@ -14,8 +16,23 @@ from testBot_robot import ZoneColor
 from testBot_robot import PuckColor
 from testBot_robot import OrientationFromTag
 
-#import matplotlib.pyplot as plt
-#import matplotlib.cm as cm
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+
+
+
+class PriorityQueue:
+    def __init__(self):
+        self.elements = []
+
+    def empty(self) -> bool:
+        return not self.elements
+
+    def put(self, item, priority):
+        heapq.heappush(self.elements, (priority, item))
+
+    def get(self):
+        return heapq.heappop(self.elements)[1]
 
 def decode_command(sentence):
     command = json.loads(sentence)
@@ -65,6 +82,7 @@ class RobotParameters:
         self.finishPosition = finishPosition
         self.backToFinishPosition = False
         self.path = []
+        self.waitTime = 0
 
         self.pubController = rospy.Publisher('/' + robotName + '/robotController', String, queue_size=10)
         self.pubRobotStop = rospy.Publisher("/" + robotName + "/robotStop", Bool, queue_size=10)
@@ -77,23 +95,34 @@ class Controller:
     def __init__(self):
         self.puckInZone = dict()
         self.zoneEnterPosition = dict()
+        self.listZoneEnterPosition = list()
         self.bots = [RobotParameters('bot1', (4, 6), -math.pi/2, (4, 6), self.callbackRobotAnswerBot)]
         self.bots.append(RobotParameters('bot2', (5, 4), math.pi, (5, 4), self.callbackRobotAnswerBot))
         self.bots.append(RobotParameters('bot3', (7, 5), math.pi/2, (7, 5), self.callbackRobotAnswerBot))
         self.bots.append(RobotParameters('bot4', (6, 7), 0, (6, 7), self.callbackRobotAnswerBot))
-        self.botsFinished = [False, False]
+        self.bots.append(RobotParameters('bot5', (2, 5), -math.pi/2, (2, 5), self.callbackRobotAnswerBot))
+        self.bots.append(RobotParameters('bot6', (6, 2), math.pi, (6, 2), self.callbackRobotAnswerBot))
+        self.bots.append(RobotParameters('bot7', (9, 6), math.pi/2, (9, 6), self.callbackRobotAnswerBot))
+        self.bots.append(RobotParameters('bot8', (5, 9), 0, (5, 9), self.callbackRobotAnswerBot))
+        self.bots.append(RobotParameters('bot9', (0, 7), -math.pi/2, (0, 7), self.callbackRobotAnswerBot))
+        self.bots.append(RobotParameters('bot10', (4, 0), math.pi, (4, 0), self.callbackRobotAnswerBot))
+        self.bots.append(RobotParameters('bot11', (11, 4), math.pi/2, (11, 4), self.callbackRobotAnswerBot))
+        self.bots.append(RobotParameters('bot12', (7, 11), 0, (7, 11), self.callbackRobotAnswerBot))
+        self.botsFinished = [False, False, False, False, False, False, False, False, False, False, False, False]
         self.SetEnterZonePosition()
         self.SetPuckInZone()
         self.GenerateStartMap()
+        self.GenerateStartPathMap()
 
-        '''
+        self.pathWasChange = True
+
         plt.ion()
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ax.set_title("Cost map")
+        self.fig = plt.figure()
+        plt.xticks(np.arange(0, 12, 1))
+        plt.yticks(np.arange(0, 12, 1))
         plt.grid(True)
         plt.show()
-        '''
+
 
         print("Start")
         rospy.sleep(1)
@@ -113,10 +142,48 @@ class Controller:
             print("Work finished !!!")
             exit(0)
 
-        '''
-        plt.imshow(self.GenerateCostMapForRobot(1), cmap=cm.RdYlGn, origin='lower', extent=[0, 11, 0, 11])
-        plt.pause(0.01)
-        '''
+
+        if self.pathWasChange:
+            sumMap = []
+            k = 0
+            for i in self.robotPathMap:
+                sumMap.append([])
+                for j in i:
+                    if len(j) > 0:
+                        sumMap[k].append(sum(j))
+                    else:
+                        sumMap[k].append(math.inf)
+                k+=1
+            plt.clf()
+            ax1 = self.fig.add_subplot(221)
+            ax2 = self.fig.add_subplot(222)
+            ax3 = self.fig.add_subplot(223)
+            ax4 = self.fig.add_subplot(224)
+            self.fig.tight_layout(pad=3.0)
+            ax1.set_title("Path map")
+            ax2.set_title("Robot position map")
+            ax3.set_title("Cost map bot2")
+            ax4.set_title("Cost map bot3")
+            ax1.set_xticks(np.arange(0, 12, 1))
+            ax1.set_yticks(np.arange(0, 12, 1))
+            ax2.set_xticks(np.arange(0, 12, 1))
+            ax2.set_yticks(np.arange(0, 12, 1))
+            ax3.set_xticks(np.arange(0, 12, 1))
+            ax3.set_yticks(np.arange(0, 12, 1))
+            ax4.set_xticks(np.arange(0, 12, 1))
+            ax4.set_yticks(np.arange(0, 12, 1))
+            ax1.grid(True)
+            ax2.grid(True)
+            ax3.grid(True)
+            ax4.grid(True)
+            ax1.imshow(np.array(sumMap).transpose(), cmap=cm.RdYlGn, origin='upper', extent=[0, 11, 0, 11])
+            ax2.imshow(np.array(self.robotMap).transpose(), cmap=cm.RdYlGn, origin='upper', extent=[0, 11, 0, 11])
+            ax3.imshow(np.array(self.GenerateCostMapForRobot(2)).transpose(), cmap=cm.RdYlGn, origin='upper', extent=[0, 11, 0, 11])
+            ax4.imshow(np.array(self.GenerateCostMapForRobot(3)).transpose(), cmap=cm.RdYlGn, origin='upper',
+                       extent=[0, 11, 0, 11])
+            plt.pause(0.2)
+            self.pathWasChange = False
+
 
     def updateRobot(self, robotNumber):
         robotState = self.bots[robotNumber-1].robotState
@@ -131,11 +198,13 @@ class Controller:
             elif self.bots[robotNumber-1].robotPosition != self.bots[robotNumber-1].finishPosition:
                 if len(self.bots[robotNumber-1].path) == 0:
                     self.bots[robotNumber-1].path = self.SearchNearestPathToPosition(self.bots[robotNumber-1].finishPosition, robotNumber, self.GenerateCostMapForRobot(robotNumber))
+                    self.AddRobotPathToMap(robotNumber)
                     self.bots[robotNumber-1].robotState = RobotState.READY
 
         elif robotState == RobotState.IDLE:
              if self.bots[robotNumber-1].puckColor == PuckColor.NONPUCK:
                 self.bots[robotNumber - 1].path = self.SearchPathToNearestZone(ZoneColor.BLACK, robotNumber, self.GenerateCostMapForRobot(robotNumber))
+                self.AddRobotPathToMap(robotNumber)
                 self.bots[robotNumber - 1].zoneColor = ZoneColor.BLACK
 
                 if len(self.bots[robotNumber - 1].path) == 1:
@@ -157,6 +226,16 @@ class Controller:
                 self.bots[robotNumber-1].sendCommand(robotNumber, str(RobotCommand.PUT_DOWN_PUCK), [x, y])
 
         elif robotState == RobotState.READY:
+            if len(self.bots[robotNumber - 1].path) > 1:
+                self.RemoveRobotPathFromPathMap(robotNumber)
+                if self.bots[robotNumber - 1].backToFinishPosition:
+                    self.bots[robotNumber - 1].path = self.SearchNearestPathToPosition(self.bots[robotNumber - 1].finishPosition, robotNumber,
+                        self.GenerateCostMapForRobot(robotNumber))
+                else:
+                    self.bots[robotNumber - 1].path = self.SearchPathToNearestZone(self.bots[robotNumber - 1].zoneColor, robotNumber,
+                                                                           self.GenerateCostMapForRobot(robotNumber))
+                self.AddRobotPathToMap(robotNumber)
+
             path = self.bots[robotNumber - 1].path
             if len(path) > 1:
                 self.MakeOneStepInPath(robotNumber)
@@ -176,7 +255,6 @@ class Controller:
         elif robotState == RobotState.WAIT:
             self.MakeOneStepInPath(robotNumber)
 
-
     def callbackRobotAnswerBot(self, msg):
         robotNumber, answer, answerParam = decode_command(msg.data)
         print("Robot: {}, answer {}, parma: {}".format(self.bots[robotNumber-1].robotName, answer, answerParam))
@@ -188,8 +266,11 @@ class Controller:
                 lastPos = self.bots[robotNumber-1].robotPosition
                 currentPos = self.bots[robotNumber-1].path[1]
 
-                self.robotMap[lastPos[0]][lastPos[1]] = 0
+                if not (currentPos in self.listZoneEnterPosition):
+                    self.robotMap[lastPos[0]][lastPos[1]] = 0
+
                 self.bots[robotNumber-1].path.remove(lastPos)
+                self.RemoveOneStepFromPathMap(robotNumber, lastPos)
                 self.bots[robotNumber-1].robotPosition = currentPos
 
                 self.bots[robotNumber-1].robotState = RobotState.READY
@@ -216,6 +297,7 @@ class Controller:
                 self.bots[robotNumber-1].robotInZone = False
                 if self.bots[robotNumber-1].puckColor == PuckColor.NONPUCK:
                     self.bots[robotNumber-1].path = self.SearchPathToNearestZone(ZoneColor.BLACK, robotNumber, self.GenerateCostMapForRobot(robotNumber))
+                    self.AddRobotPathToMap(robotNumber)
                     self.bots[robotNumber-1].zoneColor = ZoneColor.BLACK
 
                 else:
@@ -234,6 +316,7 @@ class Controller:
 
                     self.bots[robotNumber-1].path = self.SearchPathToNearestZone(self.bots[robotNumber-1].zoneColor, robotNumber,
                                                                      self.GenerateCostMapForRobot(robotNumber))
+                    self.AddRobotPathToMap(robotNumber)
 
                 self.bots[robotNumber-1].robotState = RobotState.READY
 
@@ -418,7 +501,48 @@ class Controller:
         j = 1
         for i in self.bots:
             self.robotMap[i.robotPosition[0]][i.robotPosition[1]] = j
+            if i.robotPosition in self.listZoneEnterPosition:
+                neighbors = self.GetNeighbors(i.robotPosition)
+                '''
+                if len(neighbors) == 1:
+                    neighbor = neighbors[0]
+                    dx = i.robotPosition[0] - neighbor[0]
+                    dy = i.robotPosition[1] - neighbor[1]
+                    self.robotMap[neighbor[0]][neighbor[1]] = j
+                    self.robotMap[neighbor[0] - dx][neighbor[1] - dy] = j
+                else:
+                '''
+                for k in neighbors:
+                    self.robotMap[k[0]][k[1]] = j
             j = j + 1
+
+    def GenerateStartPathMap(self):
+        self.robotPathMap = []
+        for i in range(12):
+            self.robotPathMap.append([])
+            for j in range(12):
+                self.robotPathMap[i].append([])
+
+    def AddRobotPathToMap(self, robotNumber):
+        self.pathWasChange = True
+        path = self.bots[robotNumber-1].path
+        if len(path) > 0:
+            for i in path:
+                if robotNumber in self.robotPathMap[i[0]][i[1]]:
+                    continue
+                else:
+                    self.robotPathMap[i[0]][i[1]].append(robotNumber)
+
+    def RemoveOneStepFromPathMap(self, robotNumber, step):
+        self.pathWasChange = True
+        if robotNumber in self.robotPathMap[step[0]][step[1]]:
+            self.robotPathMap[step[0]][step[1]].remove(robotNumber)
+
+    def RemoveRobotPathFromPathMap(self, robotNumber):
+        self.pathWasChange = True
+        for i in self.bots[robotNumber-1].path:
+            if robotNumber in self.robotPathMap[i[0]][i[1]]:
+                self.robotPathMap[i[0]][i[1]].remove(robotNumber)
 
     def SetEnterZonePosition(self):
         self.zoneEnterPosition[ZoneColor.BLACK] = dict()
@@ -442,6 +566,19 @@ class Controller:
         self.zoneEnterPosition[ZoneColor.BLUE] = dict()
         self.zoneEnterPosition[ZoneColor.BLUE][1] = (2, 1)
         self.zoneEnterPosition[ZoneColor.BLUE][2] = (0, 2)
+
+        self.listZoneEnterPosition.append((6, 7))
+        self.listZoneEnterPosition.append((4, 6))
+        self.listZoneEnterPosition.append((5, 4))
+        self.listZoneEnterPosition.append((7, 5))
+        self.listZoneEnterPosition.append((2, 10))
+        self.listZoneEnterPosition.append((0, 9))
+        self.listZoneEnterPosition.append((9, 10))
+        self.listZoneEnterPosition.append((11, 9))
+        self.listZoneEnterPosition.append((9, 1))
+        self.listZoneEnterPosition.append((11, 2))
+        self.listZoneEnterPosition.append((2, 1))
+        self.listZoneEnterPosition.append((0, 2))
 
     def SetPuckInZone(self):
         self.puckInZone[ZoneColor.BLACK] = dict()
@@ -475,7 +612,7 @@ class Controller:
                     costMap[i].append(math.inf)
 
                 elif self.robotMap[i][j] != 0 and self.robotMap[i][j] != robotNumber:
-                    costMap[i].append(100)
+                    costMap[i].append(7)
 
                 elif self.robotMap[i][j] == robotNumber:
                     costMap[i].append(0)
@@ -484,6 +621,26 @@ class Controller:
                     costMap[i].append(1)
 
         #Dodac koszty przeciecia sie tras
+        for i in range(len(self.robotPathMap)):
+            for j in range(len(self.robotPathMap[i])):
+                tempLenList = len(self.robotPathMap[i][j])
+                if tempLenList > 0:
+                    if robotNumber in self.robotPathMap[i][j]:
+                        costMap[i][j] += (tempLenList - 1)
+                    else:
+                        costMap[i][j] += tempLenList
+
+        for i in range(len(self.bots)):
+            if i != (robotNumber - 1):
+                if len(self.bots[i].path) >= 3:
+                    firstStep = self.bots[i].path[1]
+                    secondStep = self.bots[i].path[2]
+                    costMap[firstStep[0]][firstStep[1]] += 5
+                    costMap[secondStep[0]][secondStep[1]] += 3
+
+                elif len(self.bots[i].path) == 2:
+                    firstStep = self.bots[i].path[1]
+                    costMap[firstStep[0]][firstStep[1]] += 5
 
         return costMap
 
@@ -522,17 +679,29 @@ class Controller:
         cameFrom[self.bots[robotNumber-1].robotPosition] = None
         currentCost[self.bots[robotNumber-1].robotPosition] = 0
 
+        #print('GoalPos: {}'.format(goalPos))
+
         while not frontier.empty():
             currentPos = frontier.get()
+
+            #print('CurrentPos: {}'.format(currentPos))
 
             if currentPos == goalPos:
                 break
 
+            #print('Neighbors {}'.format(self.GetNeighbors(currentPos)))
+
             for next in self.GetNeighbors(currentPos):
                 new_cost = currentCost[currentPos] + costMap[next[0]][next[1]]
+
+                #print('try next pos {}, currentCost {}, costMap {}'. format(next, currentCost[currentPos], costMap[next[0]][next[1]]))
+
                 if next not in currentCost or new_cost < currentCost[next]:
                     currentCost[next] = new_cost
                     priority = new_cost + self.TaxicabNorm(next, goalPos)
+
+                    #print('Next: {}, Goal: {} -> TaxiNorm: {}, prio: {}'.format(next, goalPos, self.TaxicabNorm(next, goalPos), priority))
+
                     frontier.put(next, priority)
                     cameFrom[next] = currentPos
 
@@ -653,7 +822,8 @@ class Controller:
 
             nextPos = self.bots[robotNumber - 1].path[1]
 
-            if self.robotMap[nextPos[0]][nextPos[1]] == 0:
+            if self.robotMap[nextPos[0]][nextPos[1]] == 0 or self.robotMap[nextPos[0]][nextPos[1]] == robotNumber:
+                self.bots[robotNumber - 1].waitTime = 0
                 self.robotMap[nextPos[0]][nextPos[1]] = robotNumber
                 self.bots[robotNumber - 1].robotState = RobotState.FORWARD
                 x,y = self.ConvertOnRealCoordinates(nextPos[0], nextPos[1])
@@ -661,7 +831,94 @@ class Controller:
 
             else:
                 self.bots[robotNumber - 1].robotState = RobotState.WAIT
+                self.bots[robotNumber - 1].waitTime += 1
+
+                if self.bots[robotNumber - 1].waitTime == 100:
+                    print('Wait time finish')
+                    self.RemoveRobotPathFromPathMap(robotNumber)
+                    if self.bots[robotNumber - 1].backToFinishPosition:
+                        self.bots[robotNumber - 1].path = self.SearchNearestPathToPosition(
+                            self.bots[robotNumber - 1].finishPosition, robotNumber,
+                            self.GenerateCostMapForRobot(robotNumber))
+                    else:
+                        self.bots[robotNumber - 1].path = self.SearchPathToNearestZone(
+                            self.bots[robotNumber - 1].zoneColor, robotNumber,
+                            self.GenerateCostMapForRobot(robotNumber))
+                    self.AddRobotPathToMap(robotNumber)
+
+                if self.bots[robotNumber - 1].waitTime == 800:
+                    print('Wait time finish')
+                    self.RemoveRobotPathFromPathMap(robotNumber)
+                    if self.bots[robotNumber - 1].backToFinishPosition:
+                        self.bots[robotNumber - 1].path = self.SearchNearestPathToPosition(
+                            self.bots[robotNumber - 1].finishPosition, robotNumber,
+                            self.GenerateCostMapForRobotWithScale(robotNumber, 2))
+                    else:
+                        self.bots[robotNumber - 1].path = self.SearchPathToNearestZone(
+                            self.bots[robotNumber - 1].zoneColor, robotNumber,
+                            self.GenerateCostMapForRobotWithScale(robotNumber, 2))
+                    self.AddRobotPathToMap(robotNumber)
+
+                if self.bots[robotNumber - 1].waitTime == 1600:
+                    print('Wait time finish')
+                    self.bots[robotNumber - 1].waitTime = 0
+                    self.RemoveRobotPathFromPathMap(robotNumber)
+                    if self.bots[robotNumber - 1].backToFinishPosition:
+                        self.bots[robotNumber - 1].path = self.SearchNearestPathToPosition(
+                            self.bots[robotNumber - 1].finishPosition, robotNumber,
+                            self.GenerateCostMapForRobotWithScale(robotNumber, 6))
+                    else:
+                        self.bots[robotNumber - 1].path = self.SearchPathToNearestZone(
+                            self.bots[robotNumber - 1].zoneColor, robotNumber,
+                            self.GenerateCostMapForRobotWithScale(robotNumber, 6))
+                    self.AddRobotPathToMap(robotNumber)
+                    
+                if len(self.bots[robotNumber - 1].path) == 0 :
+                    self.bots[robotNumber - 1].robotState = RobotState.FINISH
+                    self.bots[robotNumber - 1].backToFinishPosition = True
+
                 return
+
+    def GenerateCostMapForRobotWithScale(self, robotNumber, scale):
+        costMap = []
+        for i in range(len(self.robotMap)):
+            costMap.append([])
+            for j in range(len(self.robotMap[i])):
+                if self.robotMap[i][j] == -1:
+                    costMap[i].append(math.inf)
+
+                elif self.robotMap[i][j] != 0 and self.robotMap[i][j] != robotNumber:
+                    costMap[i].append(7*scale)
+
+                elif self.robotMap[i][j] == robotNumber:
+                    costMap[i].append(0)
+
+                else:
+                    costMap[i].append(1)
+
+        # Dodac koszty przeciecia sie tras
+        for i in range(len(self.robotPathMap)):
+            for j in range(len(self.robotPathMap[i])):
+                tempLenList = len(self.robotPathMap[i][j])
+                if tempLenList > 0:
+                    if robotNumber in self.robotPathMap[i][j]:
+                        costMap[i][j] += (tempLenList - 1)
+                    else:
+                        costMap[i][j] += tempLenList
+
+        for i in range(len(self.bots)):
+            if i != (robotNumber - 1):
+                if len(self.bots[i].path) >= 3:
+                    firstStep = self.bots[i].path[1]
+                    secondStep = self.bots[i].path[2]
+                    costMap[firstStep[0]][firstStep[1]] += 5
+                    costMap[secondStep[0]][secondStep[1]] += 3
+
+                elif len(self.bots[i].path) == 2:
+                    firstStep = self.bots[i].path[1]
+                    costMap[firstStep[0]][firstStep[1]] += 5
+
+        return costMap
 
     def ConvertOnRealCoordinates(self, i, j):
         x_coord = [2.85, 2.4, 1.8, 1.2, 0.75, 0.3, -0.3, -0.75, -1.2, -1.8, -2.4, -2.85]
@@ -699,11 +956,13 @@ class Controller:
         return [x_coord[j], y_coord[i]]
 
 
+
 def main():
     rospy.init_node('testBot_controller')
     controller = Controller()
     while not rospy.is_shutdown():
         controller.mianLoop()
+        rospy.sleep(0.01)
 
 
 if __name__ == '__main__':
