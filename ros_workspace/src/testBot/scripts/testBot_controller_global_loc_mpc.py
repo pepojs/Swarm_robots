@@ -86,7 +86,6 @@ class RobotParameters:
         self.finishPosition = finishPosition
         self.backToFinishPosition = False
         self.aimPosition = position
-        self.mpc = 0
 
         self.pubController = rospy.Publisher('/' + robotName + '/robotController', String, queue_size=10)
         self.pubRobotStop = rospy.Publisher("/" + robotName + "/robotStop", Bool, queue_size=10)
@@ -100,6 +99,7 @@ class Controller:
         self.puckInZone = dict()
         self.zoneEnterPosition = dict()
         self.listZoneEnterPosition = list()
+        self.mpc = 0
 
         self.bots = [RobotParameters('bot1', (3, 6), -math.pi/2, (3, 6), self.callbackRobotAnswerBot)]
         #self.bots.append(RobotParameters('bot2', (0.525, 0.3), math.pi, (0.525, 0.3), self.callbackRobotAnswerBot))
@@ -119,7 +119,7 @@ class Controller:
         self.SetEnterZonePositionMPC()
         self.SetPuckInZone()
         model = self.robotKinematicModel()
-        self.setupAllMPC(model)
+        self.setupMPC(model)
         self.GenerateStartMap()
         #self.GenerateStartPathMap()
 
@@ -444,7 +444,7 @@ class Controller:
 
     def tvp_fun1(self, t_now):
         robotNumber = 1
-        temp = self.bots[robotNumber-1].mpc.get_tvp_template()
+        temp = self.mpc.get_tvp_template()
         aim_conv = self.ConvertOnRealCoordinates(self.bots[robotNumber-1].aimPosition[0], self.bots[robotNumber-1].aimPosition[1])
         temp_list = [aim_conv[0], aim_conv[1]]
 
@@ -454,87 +454,6 @@ class Controller:
 
         for i in range(len(self.bots)):
             if i == robotNumber-1:
-                continue
-            else:
-                temp_list.append(temp_robot_coor[i][0])
-
-        for i in range(len(self.bots)):
-            if i == robotNumber - 1:
-                continue
-            else:
-                temp_list.append(temp_robot_coor[i][1])
-
-        temp['_tvp', :] = np.array(temp_list)
-        return temp
-
-    def tvp_fun2(self, t_now):
-        robotNumber = 2
-        temp = self.bots[robotNumber - 1].mpc.get_tvp_template()
-        aim_conv = self.ConvertOnRealCoordinates(self.bots[robotNumber - 1].aimPosition[0],
-                                                 self.bots[robotNumber - 1].aimPosition[1])
-        temp_list = [aim_conv[0], aim_conv[1]]
-
-        temp_robot_coor = []
-        for i in range(len(self.bots)):
-            temp_robot_coor.append(
-                self.ConvertOnRealCoordinates(self.bots[i].robotPosition[0], self.bots[i].robotPosition[1]))
-
-        for i in range(len(self.bots)):
-            if i == robotNumber - 1:
-                continue
-            else:
-                temp_list.append(temp_robot_coor[i][0])
-
-        for i in range(len(self.bots)):
-            if i == robotNumber - 1:
-                continue
-            else:
-                temp_list.append(temp_robot_coor[i][1])
-
-        temp['_tvp', :] = np.array(temp_list)
-        return temp
-
-    def tvp_fun3(self, t_now):
-        robotNumber = 3
-        temp = self.bots[robotNumber - 1].mpc.get_tvp_template()
-        aim_conv = self.ConvertOnRealCoordinates(self.bots[robotNumber - 1].aimPosition[0],
-                                                 self.bots[robotNumber - 1].aimPosition[1])
-        temp_list = [aim_conv[0], aim_conv[1]]
-
-        temp_robot_coor = []
-        for i in range(len(self.bots)):
-            temp_robot_coor.append(
-                self.ConvertOnRealCoordinates(self.bots[i].robotPosition[0], self.bots[i].robotPosition[1]))
-
-        for i in range(len(self.bots)):
-            if i == robotNumber - 1:
-                continue
-            else:
-                temp_list.append(temp_robot_coor[i][0])
-
-        for i in range(len(self.bots)):
-            if i == robotNumber - 1:
-                continue
-            else:
-                temp_list.append(temp_robot_coor[i][1])
-
-        temp['_tvp', :] = np.array(temp_list)
-        return temp
-
-    def tvp_fun4(self, t_now):
-        robotNumber = 4
-        temp = self.bots[robotNumber - 1].mpc.get_tvp_template()
-        aim_conv = self.ConvertOnRealCoordinates(self.bots[robotNumber - 1].aimPosition[0],
-                                                 self.bots[robotNumber - 1].aimPosition[1])
-        temp_list = [aim_conv[0], aim_conv[1]]
-
-        temp_robot_coor = []
-        for i in range(len(self.bots)):
-            temp_robot_coor.append(
-                self.ConvertOnRealCoordinates(self.bots[i].robotPosition[0], self.bots[i].robotPosition[1]))
-
-        for i in range(len(self.bots)):
-            if i == robotNumber - 1:
                 continue
             else:
                 temp_list.append(temp_robot_coor[i][0])
@@ -626,8 +545,7 @@ class Controller:
 
         return model
 
-    def setupAllMPC(self, model):
-
+    def setupMPC(self, model):
 
         setup_mpc = {
             'n_horizon': 12,
@@ -638,53 +556,47 @@ class Controller:
             # 'ipopt.max_iter':500
         }
 
-        tvp_fun_list = [self.tvp_fun1, self.tvp_fun2, self.tvp_fun3, self.tvp_fun4]
-        i = 0
+        self.mpc = do_mpc.controller.MPC(model)
+        self.mpc.set_param(**setup_mpc)
+        self.mpc.set_tvp_fun(self.tvp_fun1)
 
-        for bot in self.bots:
-            bot.mpc = do_mpc.controller.MPC(model)
+        mterm = SX(0)#10*fabs(model.x['pos_x'] - model.tvp['aim_x']) + 10*fabs(model.x['pos_y'] - model.tvp['aim_y'])
+        lterm = 300*fabs(model.x['pos_x'] - model.tvp['aim_x']) + 300*fabs(model.x['pos_y'] - model.tvp['aim_y'])
 
-            bot.mpc.set_param(**setup_mpc)
-            bot.mpc.set_tvp_fun(tvp_fun_list[i])
+        '''
+        for j in range(len(self.bots)-1):
+            mterm += -10*sqrt((model.x['pos_x'] - model.tvp['avoid_x', j])**2 + (model.x['pos_y'] - model.tvp['avoid_y', j])**2)
+            lterm += -5*sqrt((model.x['pos_x'] - model.tvp['avoid_x', j])**2 + (model.x['pos_y'] - model.tvp['avoid_y', j])**2)
+        '''
 
-            mterm = SX(0)#10*fabs(model.x['pos_x'] - model.tvp['aim_x']) + 10*fabs(model.x['pos_y'] - model.tvp['aim_y'])
-            lterm = 300*fabs(model.x['pos_x'] - model.tvp['aim_x']) + 300*fabs(model.x['pos_y'] - model.tvp['aim_y'])
+        self.mpc.set_objective(mterm=mterm, lterm=lterm)
+        self.mpc.set_rterm(v=0.5, omega=3)
 
-            '''
-            for j in range(len(self.bots)-1):
-                mterm += -10*sqrt((model.x['pos_x'] - model.tvp['avoid_x', j])**2 + (model.x['pos_y'] - model.tvp['avoid_y', j])**2)
-                lterm += -5*sqrt((model.x['pos_x'] - model.tvp['avoid_x', j])**2 + (model.x['pos_y'] - model.tvp['avoid_y', j])**2)
-            '''
+        self.mpc.bounds['lower', '_x', 'pos_x'] = -3
+        self.mpc.bounds['lower', '_x', 'pos_y'] = -3
+        self.mpc.bounds['lower', '_x', 'theta'] = -np.pi
 
-            bot.mpc.set_objective(mterm=mterm, lterm=lterm)
-            bot.mpc.set_rterm(v=0.5, omega=3)
+        self.mpc.bounds['upper', '_x', 'pos_x'] = 3
+        self.mpc.bounds['upper', '_x', 'pos_y'] = 3
+        self.mpc.bounds['upper', '_x', 'theta'] = np.pi
 
-            bot.mpc.bounds['lower', '_x', 'pos_x'] = -3
-            bot.mpc.bounds['lower', '_x', 'pos_y'] = -3
-            bot.mpc.bounds['lower', '_x', 'theta'] = -np.pi
+        self.mpc.bounds['lower', '_u', 'v'] = 0
+        self.mpc.bounds['lower', '_u', 'omega'] = -2
+        #bot.mpc.bounds['lower', '_u', 'omega'] = -np.pi
 
-            bot.mpc.bounds['upper', '_x', 'pos_x'] = 3
-            bot.mpc.bounds['upper', '_x', 'pos_y'] = 3
-            bot.mpc.bounds['upper', '_x', 'theta'] = np.pi
+        self.mpc.bounds['upper', '_u', 'v'] = 0.5
+        self.mpc.bounds['upper', '_u', 'omega'] = 2
+        #bot.mpc.bounds['lower', '_u', 'omega'] = np.pi
 
-            bot.mpc.bounds['lower', '_u', 'v'] = 0
-            bot.mpc.bounds['lower', '_u', 'omega'] = -2
-            #bot.mpc.bounds['lower', '_u', 'omega'] = -np.pi
+        self.mpc.set_nl_cons('grid_shape', model.aux['grid'], 0.03)
 
-            bot.mpc.bounds['upper', '_u', 'v'] = 0.5
-            bot.mpc.bounds['upper', '_u', 'omega'] = 2
-            #bot.mpc.bounds['lower', '_u', 'omega'] = np.pi
+        self.mpc.setup()
+        conv_pos = self.ConvertOnRealCoordinates(self.bots[0].robotPosition[0], self.bots[0].robotPosition[1])
+        x0 = np.array([conv_pos[0], conv_pos[1], self.bots[0].globalOrientation]).reshape(-1, 1)
 
-            bot.mpc.set_nl_cons('grid_shape', model.aux['grid'], 0.03)
+        self.mpc.x0 = x0
+        self.mpc.set_initial_guess()
 
-            bot.mpc.setup()
-            conv_pos = self.ConvertOnRealCoordinates(bot.robotPosition[0], bot.robotPosition[1])
-            x0 = np.array([conv_pos[0], conv_pos[1], bot.globalOrientation]).reshape(-1, 1)
-
-            bot.mpc.x0 = x0
-            bot.mpc.set_initial_guess()
-
-            i += 1
 
     def GenerateStartMap(self):
         self.robotMap = []
@@ -905,8 +817,8 @@ class Controller:
             conv_pos = self.ConvertOnRealCoordinates(self.bots[robotNumber-1].robotPosition[0], self.bots[robotNumber-1].robotPosition[1])
             x0 = np.array([conv_pos[0], conv_pos[1], self.bots[robotNumber-1].globalOrientation]).reshape(-1, 1)
 
-            self.bots[robotNumber - 1].mpc.x0 = x0
-            self.bots[robotNumber - 1].mpc.set_initial_guess()
+            self.mpc.x0 = x0
+            self.mpc.set_initial_guess()
             return
 
         print(aim)
@@ -914,8 +826,8 @@ class Controller:
         conv_pos = self.ConvertOnRealCoordinates(self.bots[robotNumber - 1].robotPosition[0], self.bots[robotNumber - 1].robotPosition[1])
         x0 = np.array([conv_pos[0], conv_pos[1], self.bots[robotNumber - 1].globalOrientation]).reshape(-1, 1)
 
-        self.bots[robotNumber - 1].mpc.x0 = x0
-        self.bots[robotNumber - 1].mpc.set_initial_guess()
+        self.mpc.x0 = x0
+        self.mpc.set_initial_guess()
 
     def TaxicabNorm(self, position1, position2):
         return abs(position2[0] - position1[0]) + abs(position2[1] - position1[1])
@@ -1079,14 +991,14 @@ class Controller:
             conv_pos = self.ConvertOnRealCoordinates(self.bots[robotNumber - 1].robotPosition[0], self.bots[robotNumber - 1].robotPosition[1])
             x0 = np.array([conv_pos[0], conv_pos[1], self.bots[robotNumber - 1].globalOrientation]).reshape(-1, 1)
 
-            self.bots[robotNumber - 1].mpc.x0 = x0
-            u0 = self.bots[robotNumber - 1].mpc.make_step(x0)
+            self.mpc.x0 = x0
+            u0 = self.mpc.make_step(x0)
 
             mpl.rcParams['font.size'] = 18
             mpl.rcParams['lines.linewidth'] = 3
             mpl.rcParams['axes.grid'] = True
 
-            mpc_graphics = do_mpc.graphics.Graphics(self.bots[robotNumber - 1].mpc.data)
+            mpc_graphics = do_mpc.graphics.Graphics(self.mpc.data)
             
             fig, ax = plt.subplots(2, sharex=True, figsize=(16, 9))
             fig.align_ylabels()
@@ -1124,8 +1036,8 @@ class Controller:
             index = 0
             min_index = 0
 
-            pre_x = self.bots[robotNumber - 1].mpc.data.prediction(('_x', 'pos_x'))
-            pre_y = self.bots[robotNumber - 1].mpc.data.prediction(('_x', 'pos_y'))
+            pre_x = self.mpc.data.prediction(('_x', 'pos_x'))
+            pre_y = self.mpc.data.prediction(('_x', 'pos_y'))
 
             pre_pos = []
             for i in range(len(pre_x[0])):

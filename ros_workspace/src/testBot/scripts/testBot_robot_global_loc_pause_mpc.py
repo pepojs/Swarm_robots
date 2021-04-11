@@ -786,7 +786,7 @@ class TransportRobot:
 
                 positionX = -0.525
                 positionY = -0.3
-                orientation = math.pi
+                orientation = 0
 
                 self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
                 self.zone.SetZoneNumber(tempZoneNumber)
@@ -797,7 +797,7 @@ class TransportRobot:
 
                 positionX = -0.3
                 positionY = 0.525
-                orientation = math.pi / 2
+                orientation = -math.pi / 2
 
                 self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
                 self.zone.SetZoneNumber(tempZoneNumber)
@@ -808,7 +808,7 @@ class TransportRobot:
 
                 positionX = 0.525
                 positionY = 0.3
-                orientation = 0
+                orientation = math.pi
 
                 self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
                 self.zone.SetZoneNumber(tempZoneNumber)
@@ -819,7 +819,7 @@ class TransportRobot:
 
                 positionX = 0.3
                 positionY = -0.525
-                orientation = -math.pi / 2
+                orientation = math.pi / 2
 
                 self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
                 self.zone.SetZoneNumber(tempZoneNumber)
@@ -831,7 +831,7 @@ class TransportRobot:
 
                 positionX = -2.4
                 positionY = 1.875
-                orientation = -math.pi / 2
+                orientation = math.pi / 2
 
                 self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
                 self.zone.SetZoneNumber(tempZoneNumber)
@@ -842,7 +842,7 @@ class TransportRobot:
 
                 positionX = -1.875
                 positionY = 2.7
-                orientation = 0
+                orientation = math.pi
 
                 self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
                 self.zone.SetZoneNumber(tempZoneNumber)
@@ -854,7 +854,7 @@ class TransportRobot:
 
                 positionX = -2.4
                 positionY = -1.875
-                orientation = math.pi / 2
+                orientation = -math.pi / 2
 
                 self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
                 self.zone.SetZoneNumber(tempZoneNumber)
@@ -865,7 +865,7 @@ class TransportRobot:
 
                 positionX = -1.875
                 positionY = -2.7
-                orientation = 0
+                orientation = math.pi
 
                 self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
                 self.zone.SetZoneNumber(tempZoneNumber)
@@ -878,7 +878,7 @@ class TransportRobot:
 
                 positionX = 2.4
                 positionY = -1.875
-                orientation = math.pi / 2
+                orientation = -math.pi / 2
 
                 self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
                 self.zone.SetZoneNumber(tempZoneNumber)
@@ -889,7 +889,7 @@ class TransportRobot:
 
                 positionX = 1.875
                 positionY = -2.7
-                orientation = math.pi
+                orientation = 0
 
                 self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
                 self.zone.SetZoneNumber(tempZoneNumber)
@@ -901,7 +901,7 @@ class TransportRobot:
 
                 positionX = 2.4
                 positionY = 1.875
-                orientation = -math.pi / 2
+                orientation = math.pi / 2
 
                 self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
                 self.zone.SetZoneNumber(tempZoneNumber)
@@ -912,7 +912,7 @@ class TransportRobot:
 
                 positionX = 1.875
                 positionY = 2.7
-                orientation = math.pi
+                orientation = 0
 
                 self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
                 self.zone.SetZoneNumber(tempZoneNumber)
