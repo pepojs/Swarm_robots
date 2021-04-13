@@ -21,13 +21,14 @@ class Display:
         self.file = None
         self.line_offset = []
         self.line_counter = 0
-        self.line_counter_tick = 6
+        self.line_counter_tick = 7
         self.csv_reader = None
 
         self.number_of_robots = 0
         self.time = 0
 
         self.prediction = False
+        self.display_prediction = True
 
         self.open_file()
 
@@ -36,7 +37,9 @@ class Display:
         self.robot_colors = []
         self.robot_predictions = []
         self.robot_path_length = []
+        self.pack_delivered = []
         for i in range(self.number_of_robots):
+            self.pack_delivered.append(0)
             self.robot_positions.append([])
             self.robot_aims.append([])
             self.robot_colors.append([])
@@ -131,6 +134,11 @@ class Display:
                 self.time_delay += 1
                 print('Time_delay: ', self.time_delay)
 
+        if self.key == 'p':
+            if self.prediction:
+                self.display_prediction = not self.display_prediction
+                self.display_map()
+
     def main_loop(self):
         while not self.finish:
             plt.pause(.0001)
@@ -158,6 +166,9 @@ class Display:
                     row = next(self.csv_reader)
                     for i in range(len(row)):
                         self.pack_in_zone_update(row[i])
+
+                    row = next(self.csv_reader)
+                    self.pack_delivered = [int(j) for j in row]
 
                     if self.prediction:
                         for i in range(self.number_of_robots):
@@ -192,11 +203,18 @@ class Display:
 
                     row = next(self.csv_reader)
                     for i in range(len(row)):
+                        self.robot_aims[i] = [float(j) for j in row[i].split(',')]
+
+                    row = next(self.csv_reader)
+                    for i in range(len(row)):
                         self.robot_colors[i] = self.colors_to_int(row[i])
 
                     row = next(self.csv_reader)
                     for i in range(len(row)):
                         self.pack_in_zone_update(row[i])
+
+                    row = next(self.csv_reader)
+                    self.pack_delivered = [int(j) for j in row]
 
                     if self.prediction:
                         for i in range(self.number_of_robots):
@@ -255,14 +273,16 @@ class Display:
         for i in range(self.number_of_robots):
             ax_robots.append(self.fig.add_subplot(self.gs[i, 0]))
             ax_robots[i].plot(1, 1, "or", markersize=(80/self.number_of_robots), color=color_list[self.robot_colors[i]])
-            ax_robots[i].text(0.96, 1.01, "{:^}".format(i+1), size=(40/self.number_of_robots), color='purple')
+            ax_robots[i].text(0.93, 1.01, "{:^}".format(i+1), size=(40/self.number_of_robots), color='purple')
             ax_robots[i].text(0.93, 0.989, "{:<5.2f}".format(self.robot_path_length[i]), size=(40 / self.number_of_robots))
+            ax_robots[i].text(0.96, 1.01, "{:<}".format(self.pack_delivered[i]),
+                              size=(40 / self.number_of_robots))
             ax_robots[i].axis('off')
 
         ax = self.fig.add_subplot(self.gs[:, 1:])
         ax.set_aspect(1)
 
-        if self.prediction:
+        if self.prediction and self.display_prediction:
             for i in range(self.number_of_robots):
                 for j in range(len(self.robot_predictions[i])):
                     ax.plot(self.robot_predictions[i][j][1], self.robot_predictions[i][j][0], "or",
@@ -329,6 +349,7 @@ class Display:
 
         ax.text(3.0, 3.2, "Time: {:<5.4f}".format(float(self.time)))
         ax.text(0, 3.2, "Path length: {:>5.4f}".format(sum(self.robot_path_length)))
+        ax.text(3.0, 3.6, "File: " + self.file_name)
 
         plt.pause(0.001)
 

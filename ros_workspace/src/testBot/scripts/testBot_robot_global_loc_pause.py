@@ -117,7 +117,7 @@ class TransportRobot:
         answerParam = []
         if command == 'enterToZone' and len(paramList) == 1:
             answer = 'enterToZone'
-            answerParam.append(self.EnterToZone(paramList[0]))
+            answerParam.append(self.EnterToZoneLikeMPC(paramList[0]))
 
         elif command == 'takeNearestPuck':
             answer = 'takeNearestPuck'
@@ -125,7 +125,7 @@ class TransportRobot:
 
         elif command == 'escapeFromZone':
             answer = 'escapeFromZone'
-            answerParam = self.EscapeFromZone()
+            answerParam = self.EscapeFromZoneLikeMPC()
 
         elif command == 'putDownPuckOnPosition' and len(paramList) == 2:
             answer = 'putDownPuckOnPosition'
@@ -847,6 +847,154 @@ class TransportRobot:
 
         return tempZoneNumber
 
+    def EnterToZoneLikeMPC(self, zoneColor: ZoneColor):
+        self.zone.SetZoneColor(zoneColor)
+        self.zone.SetIsInZoneFlage(True)
+        tempZoneNumber = -1
+        accuracy = 0.05
+        robotPositionX = self.position.position.x
+        robotPositionY = self.position.position.y
+
+        if zoneColor == ZoneColor.BLACK:
+            if (robotPositionX > -1.2 - accuracy and robotPositionX < -1.2 + accuracy) and\
+               (robotPositionY > -0.3 - accuracy and robotPositionY < -0.3 + accuracy):
+                tempZoneNumber = 1
+
+                positionX = -0.525
+                positionY = -0.3
+                orientation = 0
+
+                self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
+                self.zone.SetZoneNumber(tempZoneNumber)
+
+            elif (robotPositionX > -0.3 - accuracy and robotPositionX < -0.3 + accuracy) and\
+               (robotPositionY > 1.2 - accuracy and robotPositionY < 1.2 + accuracy):
+                tempZoneNumber = 2
+
+                positionX = -0.3
+                positionY = 0.525
+                orientation = -math.pi / 2
+
+                self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
+                self.zone.SetZoneNumber(tempZoneNumber)
+
+            elif (robotPositionX > 1.2 - accuracy and robotPositionX < 1.2 + accuracy) and\
+               (robotPositionY > 0.3 - accuracy and robotPositionY < 0.3 + accuracy):
+                tempZoneNumber = 3
+
+                positionX = 0.525
+                positionY = 0.3
+                orientation = math.pi
+
+                self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
+                self.zone.SetZoneNumber(tempZoneNumber)
+
+            elif (robotPositionX > 0.3 - accuracy and robotPositionX < 0.3 + accuracy) and\
+               (robotPositionY > -1.2 - accuracy and robotPositionY < -1.2 + accuracy):
+                tempZoneNumber = 4
+
+                positionX = 0.3
+                positionY = -0.525
+                orientation = math.pi / 2
+
+                self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
+                self.zone.SetZoneNumber(tempZoneNumber)
+
+        elif zoneColor == ZoneColor.RED:
+            if (robotPositionX > -2.4 - accuracy and robotPositionX < -2.4 + accuracy) and \
+               (robotPositionY > 1.2 - accuracy and robotPositionY < 1.2 + accuracy):
+                tempZoneNumber = 1
+
+                positionX = -2.4
+                positionY = 1.875
+                orientation = math.pi / 2
+
+                self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
+                self.zone.SetZoneNumber(tempZoneNumber)
+
+            elif (robotPositionX > -1.2 - accuracy and robotPositionX < -1.2 + accuracy) and\
+               (robotPositionY > 2.7 - accuracy and robotPositionY < 2.7 + accuracy):
+                tempZoneNumber = 2
+
+                positionX = -1.875
+                positionY = 2.7
+                orientation = math.pi
+
+                self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
+                self.zone.SetZoneNumber(tempZoneNumber)
+
+        elif zoneColor == ZoneColor.GREEN:
+            if (robotPositionX > -2.4 - accuracy and robotPositionX < -2.4 + accuracy) and \
+               (robotPositionY > -1.2 - accuracy and robotPositionY < -1.2 + accuracy):
+                tempZoneNumber = 1
+
+                positionX = -2.4
+                positionY = -1.875
+                orientation = -math.pi / 2
+
+                self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
+                self.zone.SetZoneNumber(tempZoneNumber)
+
+            elif (robotPositionX > -1.2 - accuracy and robotPositionX < -1.2 + accuracy) and\
+               (robotPositionY > -2.7 - accuracy and robotPositionY < -2.7 + accuracy):
+                tempZoneNumber = 2
+
+                positionX = -1.875
+                positionY = -2.7
+                orientation = math.pi
+
+                self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
+                self.zone.SetZoneNumber(tempZoneNumber)
+
+
+        elif self.zone.GetZoneColor() == ZoneColor.YELLOW:
+            if (robotPositionX > 2.4 - accuracy and robotPositionX < 2.4 + accuracy) and \
+               (robotPositionY > -1.2 - accuracy and robotPositionY < -1.2 + accuracy):
+                tempZoneNumber = 1
+
+                positionX = 2.4
+                positionY = -1.875
+                orientation = -math.pi / 2
+
+                self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
+                self.zone.SetZoneNumber(tempZoneNumber)
+
+            elif (robotPositionX > 1.2 - accuracy and robotPositionX < 1.2 + accuracy) and\
+               (robotPositionY > -2.7 - accuracy and robotPositionY < -2.7 + accuracy):
+                tempZoneNumber = 2
+
+                positionX = 1.875
+                positionY = -2.7
+                orientation = 0
+
+                self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
+                self.zone.SetZoneNumber(tempZoneNumber)
+
+        elif self.zone.GetZoneColor() == ZoneColor.BLUE:
+            if (robotPositionX > 2.4 - accuracy and robotPositionX < 2.4 + accuracy) and \
+               (robotPositionY > 1.2 - accuracy and robotPositionY < 1.2 + accuracy):
+                tempZoneNumber = 1
+
+                positionX = 2.4
+                positionY = 1.875
+                orientation = math.pi / 2
+
+                self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
+                self.zone.SetZoneNumber(tempZoneNumber)
+
+            elif (robotPositionX > 1.2 - accuracy and robotPositionX < 1.2 + accuracy) and\
+               (robotPositionY > 2.7 - accuracy and robotPositionY < 2.7 + accuracy):
+                tempZoneNumber = 2
+
+                positionX = 1.875
+                positionY = 2.7
+                orientation = 0
+
+                self.MoveToPositionWithOrientation(positionX, positionY, orientation, 0.1, 0.025, 1, 1)
+                self.zone.SetZoneNumber(tempZoneNumber)
+
+        return tempZoneNumber
+
     def EscapeFromZone(self):
         if self.zone.IsInZone():
             escapePositionX, escapePositionY, escapeOrientation = self.GetZoneTagPositionAndOrientation()
@@ -856,6 +1004,25 @@ class TransportRobot:
                 return False
 
             self.MoveToPositionEscapeZone(escapePositionX, escapePositionY, escapeOrientation, 0.6, 1, 1)
+
+            x = self.position.position.x
+            y = self.position.position.y
+            orientation = self.position.orientation.z
+
+            return x, y, orientation
+
+        return False
+
+    def EscapeFromZoneLikeMPC(self):
+        if self.zone.IsInZone():
+            escapePosition1, escapePosition2 = self.GetZoneTagPositionAndOrientationLikeMPC()
+
+            if math.isinf(escapePosition1[0] or escapePosition2[0]):
+                print("unknown zone color or number")
+                return False
+
+            self.MoveToPositionEscapeZone(escapePosition1[0], escapePosition1[1], escapePosition1[2], 0.6, 1, 1)
+            self.MoveToPositionEscapeZone(escapePosition2[0], escapePosition2[1], escapePosition2[2], 0.6, 1, 1)
 
             x = self.position.position.x
             y = self.position.position.y
@@ -940,6 +1107,137 @@ class TransportRobot:
                 orientation = math.pi
 
         return positionX, positionY, orientation
+
+    def GetZoneTagPositionAndOrientationLikeMPC(self):
+
+        positionX_1 = math.inf
+        positionY_1 = math.inf
+        orientation_1 = 0
+
+        positionX_2 = math.inf
+        positionY_2 = math.inf
+        orientation_2 = 0
+
+        zoneColor = self.zone.GetZoneColor()
+        zoneNumber = self.zone.GetZoneNumber()
+
+        if zoneColor == ZoneColor.BLACK:
+            if zoneNumber == 1:
+                positionX_1 = -0.525
+                positionY_1 = -0.3
+                orientation_1 = math.pi
+
+                positionX_2 = -1.2
+                positionY_2 = -0.3
+                orientation_2 = math.pi
+
+            elif zoneNumber == 2:
+                positionX_1 = -0.3
+                positionY_1 = 0.525
+                orientation_1 = math.pi / 2
+
+                positionX_2 = -0.3
+                positionY_2 = 1.2
+                orientation_2 = math.pi / 2
+
+            elif zoneNumber == 3:
+                positionX_1 = 0.525
+                positionY_1 = 0.3
+                orientation_1 = 0
+
+                positionX_2 = 1.2
+                positionY_2 = 0.3
+                orientation_2 = 0
+
+            elif zoneNumber == 4:
+                positionX_1 = 0.3
+                positionY_1 = -0.525
+                orientation_1 = -math.pi / 2
+
+                positionX_2 = 0.3
+                positionY_2 = -1.2
+                orientation_2 = -math.pi / 2
+
+        elif zoneColor == ZoneColor.RED:
+            if zoneNumber == 1:
+                positionX_1 = -2.4
+                positionY_1 = 1.875
+                orientation_1 = -math.pi / 2
+
+                positionX_2 = -2.4
+                positionY_2 = 1.2
+                orientation_2 = -math.pi / 2
+
+            elif zoneNumber == 2:
+                positionX_1 = -1.875
+                positionY_1 = 2.7
+                orientation_1 = 0
+
+                positionX_2 = -1.2
+                positionY_2 = 2.7
+                orientation_2 = 0
+
+        elif zoneColor == ZoneColor.GREEN:
+            if zoneNumber == 1:
+                positionX_1 = -2.4
+                positionY_1 = -1.875
+                orientation_1 = math.pi / 2
+
+                positionX_2 = -2.4
+                positionY_2 = -1.2
+                orientation_2 = math.pi / 2
+
+            elif zoneNumber == 2:
+                positionX_1 = -1.875
+                positionY_1 = -2.7
+                orientation_1 = 0
+
+                positionX_2 = -1.2
+                positionY_2 = -2.7
+                orientation_2 = 0
+
+        elif zoneColor == ZoneColor.YELLOW:
+            if zoneNumber == 1:
+                positionX_1 = 2.4
+                positionY_1 = -1.875
+                orientation_1 = math.pi / 2
+
+                positionX_2 = 2.4
+                positionY_2 = -1.2
+                orientation_2 = math.pi / 2
+
+            elif zoneNumber == 2:
+                positionX_1 = 1.875
+                positionY_1 = -2.7
+                orientation_1 = math.pi
+
+                positionX_2 = 1.2
+                positionY_2 = -2.7
+                orientation_2 = math.pi
+
+        elif zoneColor == ZoneColor.BLUE:
+            if zoneNumber == 1:
+                positionX_1 = 2.4
+                positionY_1 = 1.875
+                orientation_1 = -math.pi / 2
+
+                positionX_2 = 2.4
+                positionY_2 = 1.2
+                orientation_2 = -math.pi / 2
+
+            elif zoneNumber == 2:
+                positionX_1 = 1.875
+                positionY_1 = 2.7
+                orientation_1 = math.pi
+
+                positionX_2 = 1.2
+                positionY_2 = 2.7
+                orientation_2 = math.pi
+
+        position1 = [positionX_1, positionY_1, orientation_1]
+        position2 = [positionX_2, positionY_2, orientation_2]
+
+        return position1, position2
 
     def PutDownPuckOnPosition(self, positionX, positionY):
 

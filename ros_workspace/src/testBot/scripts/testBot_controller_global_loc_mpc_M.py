@@ -9,6 +9,7 @@ import heapq
 import random
 import csv
 import time
+import xml.etree.ElementTree as ET
 
 from casadi import *
 import do_mpc
@@ -81,6 +82,7 @@ class RobotParameters:
         self.pathLength = 0
         self.totalPathLength = 0
         self.stopCounter = 0
+        self.packs_delivered = 0
 
         self.pubController = rospy.Publisher('/' + robotName + '/robotController', String, queue_size=10)
         self.pubRobotStop = rospy.Publisher("/" + robotName + "/robotStop", Bool, queue_size=10)
@@ -90,7 +92,7 @@ class RobotParameters:
         self.pubController.publish(code_command(robotNumber, commandName, paramList))
 
 class Controller:
-    def __init__(self, file_name):
+    def __init__(self, file_robots, file_csv):
 
         self.puckInZone = dict()
         self.zoneEnterPosition = dict()
@@ -98,25 +100,34 @@ class Controller:
         self.mpc = 0
         self.u0 = 0
 
-        self.bots = [RobotParameters('bot1', (3, 6), -math.pi/2, (3, 6), self.callbackRobotAnswerBot)]
-        self.bots.append(RobotParameters('bot2',  (5, 3), math.pi, (5, 3), self.callbackRobotAnswerBot))
-        '''
-        self.bots.append(RobotParameters('bot3', (7, 5), math.pi/2, (7, 5), self.callbackRobotAnswerBot))
-        self.bots.append(RobotParameters('bot4', (6, 7), 0, (6, 7), self.callbackRobotAnswerBot))
-        self.bots.append(RobotParameters('bot5', (2, 5), -math.pi/2, (2, 5), self.callbackRobotAnswerBot))
-        self.bots.append(RobotParameters('bot6', (6, 2), math.pi, (6, 2), self.callbackRobotAnswerBot))
-        self.bots.append(RobotParameters('bot7', (9, 6), math.pi/2, (9, 6), self.callbackRobotAnswerBot))
-        self.bots.append(RobotParameters('bot8', (5, 9), 0, (5, 9), self.callbackRobotAnswerBot))
-        self.bots.append(RobotParameters('bot9', (0, 7), -math.pi/2, (0, 7), self.callbackRobotAnswerBot))
-        self.bots.append(RobotParameters('bot10', (4, 0), math.pi, (4, 0), self.callbackRobotAnswerBot))
-        self.bots.append(RobotParameters('bot11', (11, 4), math.pi/2, (11, 4), self.callbackRobotAnswerBot))
-        self.bots.append(RobotParameters('bot12', (7, 11), 0, (7, 11), self.callbackRobotAnswerBot))
-        '''
-        self.botsFinished = [False, False]#, False, False, False, False, False, False, False, False, False, False]
+        self.bots = []
+        self.botsFinished = []
+        self.file_robots_name = file_robots
+
+        if file_robots == '':
+            self.bots.append(RobotParameters('bot1', (3, 6), -math.pi/2, (3, 6), self.callbackRobotAnswerBot))
+            self.bots.append(RobotParameters('bot2',  (5, 3), math.pi, (5, 3), self.callbackRobotAnswerBot))
+            self.bots.append(RobotParameters('bot3', (8, 5), math.pi/2, (8, 5), self.callbackRobotAnswerBot))
+            self.bots.append(RobotParameters('bot4', (6, 8), 0, (6, 8), self.callbackRobotAnswerBot))
+            '''
+            self.bots.append(RobotParameters('bot5', (2, 5), -math.pi/2, (2, 5), self.callbackRobotAnswerBot))
+            self.bots.append(RobotParameters('bot6', (6, 2), math.pi, (6, 2), self.callbackRobotAnswerBot))
+            self.bots.append(RobotParameters('bot7', (9, 6), math.pi/2, (9, 6), self.callbackRobotAnswerBot))
+            self.bots.append(RobotParameters('bot8', (5, 9), 0, (5, 9), self.callbackRobotAnswerBot))
+            self.bots.append(RobotParameters('bot9', (0, 7), -math.pi/2, (0, 7), self.callbackRobotAnswerBot))
+            self.bots.append(RobotParameters('bot10', (4, 0), math.pi, (4, 0), self.callbackRobotAnswerBot))
+            self.bots.append(RobotParameters('bot11', (11, 4), math.pi/2, (11, 4), self.callbackRobotAnswerBot))
+            self.bots.append(RobotParameters('bot12', (7, 11), 0, (7, 11), self.callbackRobotAnswerBot))
+            '''
+            self.botsFinished = [False, False, False, False]#, False, False, False, False, False, False, False, False]
+
+        else:
+            self.readRobotsFromFile()
+
         self.SetEnterZonePositionMPC()
         self.SetPuckInZone()
 
-        self.modelType = 1
+        self.modelType = 2
         if self.modelType == 2:
             model = self.robotKinematicModel2()
             self.setupMPC2(model)
@@ -130,10 +141,10 @@ class Controller:
 
         #self.pathWasChange = True
 
-        if file_name == '':
+        if file_csv == '':
             self.file_log_name = 'controller_log.csv'
         else:
-            self.file_log_name = file_name
+            self.file_log_name = file_csv
 
         self.file_log_csv = open(self.file_log_name, 'w')
         self.csv_writer = csv.writer(self.file_log_csv, delimiter=';')
@@ -158,6 +169,26 @@ class Controller:
 
     def __del__(self):
         self.file_log_csv.close()
+
+    def readRobotsFromFile(self):
+
+        tree = ET.parse(self.file_robots_name)
+        root = tree.getroot()
+
+        for arena in root.findall('arena'):
+            for bot in arena.findall('foot-bot'):
+                id = bot.get('id')
+                body = bot.find('body')
+                position = body.get('position').split(',')
+                position = self.ConvertOnMapCoordinates((float(position[0]), float(position[1])))
+                orientation = float(body.get('orientation').split(',')[0])
+                if orientation <= -180:
+                    orientation = 2 * math.pi * (orientation + 360) / 360
+                else:
+                    orientation = 2 * math.pi * orientation / 360
+
+                self.bots.append(RobotParameters(id, position, orientation, position, self.callbackRobotAnswerBot))
+                self.botsFinished.append(False)
 
     def mianLoop(self):
 
@@ -361,6 +392,8 @@ class Controller:
         elif answer == str(RobotCommand.PUT_DOWN_PUCK):
             if len(answerParam) == 1:
                 if answerParam[0]:
+                    self.bots[robotNumber - 1].packs_delivered += 1
+
                     self.puckInZone[self.bots[robotNumber-1].zoneColor][self.bots[robotNumber-1].zoneNumber] += 1
                     self.bots[robotNumber-1].puckColor = PuckColor.NONPUCK
 
@@ -666,7 +699,7 @@ class Controller:
             't_step': 0.5,
             'n_robust': 0,
             'store_full_solution': True,
-            'nlpsol_opts': {'ipopt.max_iter': 1000, 'ipopt.print_level': 3, 'ipopt.linear_solver': 'ma27'}#, 'ipopt.tol': 10e-2, 'ipopt.print_level': 0, 'ipopt.sb': 'yes', 'print_time': 0}
+            'nlpsol_opts': {'ipopt.max_iter': 1500, 'ipopt.print_level': 3, 'ipopt.linear_solver': 'ma27'}#, 'ipopt.tol': 10e-2, 'ipopt.print_level': 0, 'ipopt.sb': 'yes', 'print_time': 0}
             # 'ipopt.max_iter':500
         }
 
@@ -686,14 +719,13 @@ class Controller:
         lterm = SX(0)
 
         for i in range(len(self.bots)):
-            mterm += w_mterm_dist * self.MyNorm((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
-                #w_mterm_dist*fabs(model.x['pos_x', i] - model.tvp['aim_x', i]) + w_mterm_dist*fabs(model.x['pos_y', i] - model.tvp['aim_y', i])
-            #lterm += w_lterm_dist*fabs(model.x['pos_x', i] - model.tvp['aim_x', i]) \
-            #          + w_lterm_dist*fabs(model.x['pos_y', i] - model.tvp['aim_y', i])
-            lterm += w_lterm_dist * self.MyNorm((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
+            #mterm += w_mterm_dist * self.MyNorm((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
+            w_mterm_dist*fabs(model.x['pos_x', i] - model.tvp['aim_x', i]) + w_mterm_dist*fabs(model.x['pos_y', i] - model.tvp['aim_y', i])
+            lterm += w_lterm_dist*fabs(model.x['pos_x', i] - model.tvp['aim_x', i]) \
+                      + w_lterm_dist*fabs(model.x['pos_y', i] - model.tvp['aim_y', i])
+            #lterm += w_lterm_dist * self.MyNorm((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
             lterm += w_lterm_path*model.x['distance', i]
 
-            #lterm += self.Norm2([model.x['pos_x', i], model.x['pos_y', i]], [model.tvp['aim_x', i],  model.tvp['aim_y', i]])
 
         for i in range(len(self.bots)):
             for j in range(len(self.bots)):
@@ -703,7 +735,6 @@ class Controller:
                     pass
                     lterm += w_lterm_avoid*self.SaturationFunction(fabs(model.x['pos_x', i] - model.x['pos_x', j]), 2)\
                              + w_lterm_avoid*self.SaturationFunction(fabs(model.x['pos_y', i] - model.x['pos_y', j]), 2)
-                    #lterm += -15*sqrt((model.x['pos_x', i] - model.x['pos_x', j])**2 + (model.x['pos_y', i] - model.x['pos_y', j])**2)
 
 
         #lterm /= (2*len(self.bots)*w_lterm_dist)+(2*(len(self.bots)-1)*len(self.bots)*w_lterm_avoid)
@@ -847,7 +878,7 @@ class Controller:
             't_step': 0.5,
             'n_robust': 0,
             'store_full_solution': True,
-            'nlpsol_opts': {'ipopt.max_iter': 3000, 'ipopt.print_level': 3, 'ipopt.linear_solver': 'ma27'}#, 'ipopt.tol': 10e-2, 'ipopt.print_level': 0, 'ipopt.sb': 'yes', 'print_time': 0}
+            'nlpsol_opts': {'ipopt.max_iter': 1500, 'ipopt.print_level': 3, 'ipopt.linear_solver': 'ma27'}#, 'ipopt.tol': 10e-2, 'ipopt.print_level': 0, 'ipopt.sb': 'yes', 'print_time': 0}
             # 'ipopt.max_iter':500
         }
 
@@ -1976,7 +2007,7 @@ class Controller:
             else:
                 self.bots[robotNumber - 1].stopCounter = 0
 
-            if self.bots[robotNumber - 1].stopCounter == random.randint(3, 6):
+            if self.bots[robotNumber - 1].stopCounter >= random.randint(3, 6):
                 neighbors = self.GetNeighbors(self.bots[robotNumber - 1].robotPosition)
                 self.bots[robotNumber - 1].nextStep = neighbors[random.randint(0, len(neighbors)-1)]
 
@@ -2222,6 +2253,12 @@ class Controller:
 
         return [x_coord[j], y_coord[i]]
 
+    def ConvertOnMapCoordinates(self, x):
+        y_coord = {2.85: 0, 2.4: 1, 1.8: 2, 1.2: 3, 0.75: 4, 0.3: 5, -0.3: 6, -0.75: 7, -1.2: 8, -1.8: 9, -2.4: 10, -2.85: 11}
+        x_coord = {2.7: 0, 2.25: 1, 1.8: 2, 1.2: 3, 0.75: 4, 0.3: 5, -0.3: 6, -0.75: 7, -1.2: 8, -1.8: 9, -2.25: 10, -2.7: 11}
+
+        return (x_coord[x[1]], y_coord[x[0]])
+
     def DrawCostFunction(self):
         delta = 0.1
         # dla 3D
@@ -2320,17 +2357,10 @@ class Controller:
         ax.plot([self.ConvertOnRealCoordinates(i.aimPosition[0], i.aimPosition[1])[1] for i in self.bots],
                 [self.ConvertOnRealCoordinates(i.aimPosition[0], i.aimPosition[1])[0] for i in self.bots], "or", color='teal')
 
-        for i in range(len(self.bots)):
-            print('Norm: ')
-            print('Pos: ', self.bots[i].robotPosition)
-            print('Aim: ', self.bots[i].aimPosition)
-            print('Norm: ', self.MyNorm(self.bots[i].robotPosition, self.bots[i].aimPosition))
 
-        for i in range(len(pre_pos[0])):
-            ax.plot(pre_pos[0][i][1], pre_pos[0][i][0], "or", color='#00'+format(255-int(i*(255.0/len(pre_pos[0]))), '02x') +'00', alpha=0.8)
-
-        for i in range(len(pre_pos[1])):
-            ax.plot(pre_pos[1][i][1], pre_pos[1][i][0], "or", color='#'+format(255-int(i*(255.0/len(pre_pos[1]))), '02x') +'0000', alpha=0.8)
+        for j in range(len(pre_pos)):
+            for i in range(len(pre_pos[j])):
+                ax.plot(pre_pos[j][i][1], pre_pos[j][i][0], "or", color='#00'+format(255-int(i*(255.0/len(pre_pos[j]))), '02x') +'00', alpha=0.8)
 
         points = [[1.2, 2.7], [-1.2, 2.7], [1.2, 2.25], [-1.2, 2.25], [1.2, 1.8], [-1.2, 1.8], [2.85, 1.2], [-2.85, 1.2],
                   [2.85, 0.75], [0.3, 0.75], [-0.75, 0.75], [-2.85, 0.75], [2.85, 0.3], [1.2, 0.3], [-0.75, 0.3],
@@ -2371,6 +2401,7 @@ class Controller:
         color = []
         prediction = []
         pack_in_color_zone = []
+        pack_delivered = []
 
         pack_in_color_zone.append('red,{}'.format(self.puckInZone[ZoneColor.RED][1]+self.puckInZone[ZoneColor.RED][2]))
         pack_in_color_zone.append(
@@ -2400,6 +2431,8 @@ class Controller:
             else:
                 color.append('n')
 
+            pack_delivered.append(self.bots[i].packs_delivered)
+
             prediction.append([])
             for j in range(len(pre_pos[i])):
                 prediction[i].append('{},{}'.format(pre_pos[i][j][0], pre_pos[i][j][1]))
@@ -2410,17 +2443,23 @@ class Controller:
         self.csv_writer.writerow(aim)
         self.csv_writer.writerow(color)
         self.csv_writer.writerow(pack_in_color_zone)
+        self.csv_writer.writerow(pack_delivered)
         for i in range(len(self.bots)):
             self.csv_writer.writerow(prediction[i])
 
 
 def main():
     rospy.init_node('testBot_controller')
-    file_name = ''
-    if len(sys.argv) == 2:
-        file_name = sys.argv[1]
+    file_csv = ''
+    file_robots = ''
+    if len(sys.argv) == 3:
+        file_robots = sys.argv[1]
+        file_csv = sys.argv[2]
 
-    controller = Controller(file_name)
+    elif len(sys.argv) == 2:
+        file_robots = sys.argv[1]
+
+    controller = Controller(file_robots, file_csv)
     while not rospy.is_shutdown():
         controller.mianLoop()
         rospy.sleep(0.01)

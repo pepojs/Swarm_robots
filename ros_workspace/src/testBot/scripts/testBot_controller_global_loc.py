@@ -6,7 +6,9 @@ import enum
 import math
 import numpy as np
 import heapq
-
+import csv
+import time
+import xml.etree.ElementTree as ET
 
 import rospy
 from std_msgs.msg import String
@@ -74,6 +76,7 @@ class RobotParameters:
         self.robotName = robotName
         self.robotState = RobotState.IDLE
         self.robotPosition = position
+        self.aimPosition = position
         self.puckColor = PuckColor.NONPUCK
         self.robotInZone = False
         self.zoneColor = ZoneColor.BLACK
@@ -83,6 +86,8 @@ class RobotParameters:
         self.backToFinishPosition = False
         self.path = []
         self.waitTime = 0
+        self.totalPathLength = 0
+        self.packs_delivered = 0
 
         self.pubController = rospy.Publisher('/' + robotName + '/robotController', String, queue_size=10)
         self.pubRobotStop = rospy.Publisher("/" + robotName + "/robotStop", Bool, queue_size=10)
@@ -92,40 +97,85 @@ class RobotParameters:
         self.pubController.publish(code_command(robotNumber, commandName, paramList))
 
 class Controller:
-    def __init__(self):
+    def __init__(self, file_robots, file_csv):
         self.puckInZone = dict()
         self.zoneEnterPosition = dict()
         self.listZoneEnterPosition = list()
-        self.bots = [RobotParameters('bot1', (4, 6), -math.pi/2, (4, 6), self.callbackRobotAnswerBot)]
-        self.bots.append(RobotParameters('bot2', (5, 4), math.pi, (5, 4), self.callbackRobotAnswerBot))
-        self.bots.append(RobotParameters('bot3', (7, 5), math.pi/2, (7, 5), self.callbackRobotAnswerBot))
-        self.bots.append(RobotParameters('bot4', (6, 7), 0, (6, 7), self.callbackRobotAnswerBot))
-        self.bots.append(RobotParameters('bot5', (2, 5), -math.pi/2, (2, 5), self.callbackRobotAnswerBot))
-        self.bots.append(RobotParameters('bot6', (6, 2), math.pi, (6, 2), self.callbackRobotAnswerBot))
-        self.bots.append(RobotParameters('bot7', (9, 6), math.pi/2, (9, 6), self.callbackRobotAnswerBot))
-        self.bots.append(RobotParameters('bot8', (5, 9), 0, (5, 9), self.callbackRobotAnswerBot))
-        self.bots.append(RobotParameters('bot9', (0, 7), -math.pi/2, (0, 7), self.callbackRobotAnswerBot))
-        self.bots.append(RobotParameters('bot10', (4, 0), math.pi, (4, 0), self.callbackRobotAnswerBot))
-        self.bots.append(RobotParameters('bot11', (11, 4), math.pi/2, (11, 4), self.callbackRobotAnswerBot))
-        self.bots.append(RobotParameters('bot12', (7, 11), 0, (7, 11), self.callbackRobotAnswerBot))
-        self.botsFinished = [False, False, False, False, False, False, False, False, False, False, False, False]
-        self.SetEnterZonePosition()
+
+        self.bots = []
+        self.botsFinished = []
+        self.file_robots_name = file_robots
+
+        if file_robots == '':
+            self.bots.append(RobotParameters('bot1', (3, 6), -math.pi/2, (3, 6), self.callbackRobotAnswerBot))
+            self.bots.append(RobotParameters('bot2', (5, 3), math.pi, (5, 3), self.callbackRobotAnswerBot))
+            self.bots.append(RobotParameters('bot3', (8, 5), math.pi/2, (8, 5), self.callbackRobotAnswerBot))
+            self.bots.append(RobotParameters('bot4', (6, 8), 0, (6, 8), self.callbackRobotAnswerBot))
+            self.bots.append(RobotParameters('bot5', (2, 5), -math.pi/2, (2, 5), self.callbackRobotAnswerBot))
+            self.bots.append(RobotParameters('bot6', (6, 2), math.pi, (6, 2), self.callbackRobotAnswerBot))
+            self.bots.append(RobotParameters('bot7', (9, 6), math.pi/2, (9, 6), self.callbackRobotAnswerBot))
+            self.bots.append(RobotParameters('bot8', (5, 9), 0, (5, 9), self.callbackRobotAnswerBot))
+            self.bots.append(RobotParameters('bot9', (0, 7), -math.pi/2, (0, 7), self.callbackRobotAnswerBot))
+            self.bots.append(RobotParameters('bot10', (4, 0), math.pi, (4, 0), self.callbackRobotAnswerBot))
+            self.bots.append(RobotParameters('bot11', (11, 4), math.pi/2, (11, 4), self.callbackRobotAnswerBot))
+            self.bots.append(RobotParameters('bot12', (7, 11), 0, (7, 11), self.callbackRobotAnswerBot))
+            self.botsFinished = [False, False, False, False, False, False, False, False, False, False, False, False]
+
+        else:
+            self.readRobotsFromFile()
+
+        self.SetEnterZonePositionLikeMPC()
         self.SetPuckInZone()
-        self.GenerateStartMap()
+        self.GenerateStartMapLikeMPC()
         self.GenerateStartPathMap()
 
         self.pathWasChange = True
 
+        if file_csv == '':
+            self.file_log_name = 'controller_log.csv'
+        else:
+            self.file_log_name = file_csv
+
+        self.file_log_csv = open(self.file_log_name, 'w')
+        self.csv_writer = csv.writer(self.file_log_csv, delimiter=';')
+        self.csv_writer.writerow([len(self.bots), 'p'])
+
+        '''
         plt.ion()
         self.fig = plt.figure()
         plt.xticks(np.arange(0, 12, 1))
         plt.yticks(np.arange(0, 12, 1))
         plt.grid(True)
         plt.show()
-
+        '''
 
         print("Start")
         rospy.sleep(1)
+
+        self.start_time = time.time()
+
+    def __del__(self):
+        self.file_log_csv.close()
+
+    def readRobotsFromFile(self):
+
+        tree = ET.parse(self.file_robots_name)
+        root = tree.getroot()
+
+        for arena in root.findall('arena'):
+            for bot in arena.findall('foot-bot'):
+                id = bot.get('id')
+                body = bot.find('body')
+                position = body.get('position').split(',')
+                position = self.ConvertOnMapCoordinates((float(position[0]), float(position[1])))
+                orientation = float(body.get('orientation').split(',')[0])
+                if orientation <= -180:
+                    orientation = 2 * math.pi * (orientation + 360) / 360
+                else:
+                    orientation = 2 * math.pi * orientation / 360
+
+                self.bots.append(RobotParameters(id, position, orientation, position, self.callbackRobotAnswerBot))
+                self.botsFinished.append(False)
 
     def mianLoop(self):
 
@@ -142,7 +192,7 @@ class Controller:
             print("Work finished !!!")
             exit(0)
 
-
+        '''
         if self.pathWasChange:
             sumMap = []
             k = 0
@@ -183,7 +233,7 @@ class Controller:
                        extent=[0, 11, 0, 11])
             plt.pause(0.2)
             self.pathWasChange = False
-
+            '''
 
     def updateRobot(self, robotNumber):
         robotState = self.bots[robotNumber-1].robotState
@@ -266,6 +316,10 @@ class Controller:
                 lastPos = self.bots[robotNumber-1].robotPosition
                 currentPos = self.bots[robotNumber-1].path[1]
 
+                conv_pos = self.ConvertOnRealCoordinates(lastPos[0], lastPos[1])
+                conv_pos_current = self.ConvertOnRealCoordinates(currentPos[0], currentPos[1])
+                self.bots[robotNumber - 1].totalPathLength += self.Norm2(conv_pos, conv_pos_current)
+
                 if not (currentPos in self.listZoneEnterPosition):
                     self.robotMap[lastPos[0]][lastPos[1]] = 0
 
@@ -324,6 +378,8 @@ class Controller:
         elif answer == str(RobotCommand.PUT_DOWN_PUCK):
             if len(answerParam) == 1:
                 if answerParam[0]:
+                    self.bots[robotNumber - 1].packs_delivered += 1
+
                     self.puckInZone[self.bots[robotNumber-1].zoneColor][self.bots[robotNumber-1].zoneNumber] += 1
                     self.bots[robotNumber-1].puckColor = PuckColor.NONPUCK
 
@@ -502,7 +558,79 @@ class Controller:
         for i in self.bots:
             self.robotMap[i.robotPosition[0]][i.robotPosition[1]] = j
             if i.robotPosition in self.listZoneEnterPosition:
-                neighbors = self.GetNeighbors(i.robotPosition)
+                neighbors = self.GetNeighborsLikeMPC(i.robotPosition)
+                '''
+                if len(neighbors) == 1:
+                    neighbor = neighbors[0]
+                    dx = i.robotPosition[0] - neighbor[0]
+                    dy = i.robotPosition[1] - neighbor[1]
+                    self.robotMap[neighbor[0]][neighbor[1]] = j
+                    self.robotMap[neighbor[0] - dx][neighbor[1] - dy] = j
+                else:
+                '''
+                for k in neighbors:
+                    self.robotMap[k[0]][k[1]] = j
+            j = j + 1
+
+    def GenerateStartMapLikeMPC(self):
+        self.robotMap = []
+        for i in range(12):
+            self.robotMap.append([])
+            for j in range(12):
+                self.robotMap[i].append(0)
+
+        self.robotMap[0][0] = -1
+        self.robotMap[1][0] = -1
+        self.robotMap[2][0] = -1
+        self.robotMap[0][1] = -1
+        self.robotMap[1][1] = -1
+        self.robotMap[1][2] = -1
+        self.robotMap[2][2] = -1
+        self.robotMap[9][0] = -1
+        self.robotMap[10][0] = -1
+        self.robotMap[11][0] = -1
+        self.robotMap[10][1] = -1
+        self.robotMap[11][1] = -1
+        self.robotMap[9][2] = -1
+        self.robotMap[10][2] = -1
+        self.robotMap[5][5] = -1
+        self.robotMap[6][5] = -1
+        self.robotMap[5][6] = -1
+        self.robotMap[6][6] = -1
+        self.robotMap[1][9] = -1
+        self.robotMap[2][9] = -1
+        self.robotMap[0][10] = -1
+        self.robotMap[1][10] = -1
+        self.robotMap[0][11] = -1
+        self.robotMap[1][11] = -1
+        self.robotMap[2][11] = -1
+        self.robotMap[9][9] = -1
+        self.robotMap[10][9] = -1
+        self.robotMap[10][10] = -1
+        self.robotMap[11][10] = -1
+        self.robotMap[9][11] = -1
+        self.robotMap[10][11] = -1
+        self.robotMap[11][11] = -1
+
+        # MPC
+        self.robotMap[4][6] = -1
+        self.robotMap[5][4] = -1
+        self.robotMap[7][5] = -1
+        self.robotMap[6][7] = -1
+        self.robotMap[0][9] = -1
+        self.robotMap[2][10] = -1
+        self.robotMap[9][10] = -1
+        self.robotMap[11][9] = -1
+        self.robotMap[11][2] = -1
+        self.robotMap[9][1] = -1
+        self.robotMap[2][1] = -1
+        self.robotMap[0][2] = -1
+
+        j = 1
+        for i in self.bots:
+            self.robotMap[i.robotPosition[0]][i.robotPosition[1]] = j
+            if i.robotPosition in self.listZoneEnterPosition:
+                neighbors = self.GetNeighborsLikeMPC(i.robotPosition)
                 '''
                 if len(neighbors) == 1:
                     neighbor = neighbors[0]
@@ -580,6 +708,42 @@ class Controller:
         self.listZoneEnterPosition.append((2, 1))
         self.listZoneEnterPosition.append((0, 2))
 
+    def SetEnterZonePositionLikeMPC(self):
+        self.zoneEnterPosition[ZoneColor.BLACK] = dict()
+        self.zoneEnterPosition[ZoneColor.BLACK][1] = (6, 8)
+        self.zoneEnterPosition[ZoneColor.BLACK][2] = (3, 6)
+        self.zoneEnterPosition[ZoneColor.BLACK][3] = (5, 3)
+        self.zoneEnterPosition[ZoneColor.BLACK][4] = (8, 5)
+
+        self.zoneEnterPosition[ZoneColor.RED] = dict()
+        self.zoneEnterPosition[ZoneColor.RED][1] = (3, 10)
+        self.zoneEnterPosition[ZoneColor.RED][2] = (0, 8)
+
+        self.zoneEnterPosition[ZoneColor.GREEN] = dict()
+        self.zoneEnterPosition[ZoneColor.GREEN][1] = (8, 10)
+        self.zoneEnterPosition[ZoneColor.GREEN][2] = (11, 8)
+
+        self.zoneEnterPosition[ZoneColor.YELLOW] = dict()
+        self.zoneEnterPosition[ZoneColor.YELLOW][1] = (8, 1)
+        self.zoneEnterPosition[ZoneColor.YELLOW][2] = (11, 3)
+
+        self.zoneEnterPosition[ZoneColor.BLUE] = dict()
+        self.zoneEnterPosition[ZoneColor.BLUE][1] = (3, 1)
+        self.zoneEnterPosition[ZoneColor.BLUE][2] = (0, 3)
+
+        self.listZoneEnterPosition.append((6, 8))
+        self.listZoneEnterPosition.append((3, 6))
+        self.listZoneEnterPosition.append((5, 3))
+        self.listZoneEnterPosition.append((8, 5))
+        self.listZoneEnterPosition.append((3, 10))
+        self.listZoneEnterPosition.append((0, 8))
+        self.listZoneEnterPosition.append((8, 10))
+        self.listZoneEnterPosition.append((11, 8))
+        self.listZoneEnterPosition.append((8, 1))
+        self.listZoneEnterPosition.append((11, 3))
+        self.listZoneEnterPosition.append((3, 1))
+        self.listZoneEnterPosition.append((0, 3))
+
     def SetPuckInZone(self):
         self.puckInZone[ZoneColor.BLACK] = dict()
         self.puckInZone[ZoneColor.BLACK][1] = 1
@@ -651,7 +815,7 @@ class Controller:
             for zoneNumber in range(1,5):
                 if self.puckInZone[zoneColor][zoneNumber] == 1:
                     tempPath, tempCost = self.SearchPathToZone(zoneColor, zoneNumber, robotNumber, costMap)
-                    print("Path to black zone number: {}, cost: {}".format(zoneNumber, tempCost))
+                    #print("Path to black zone number: {}, cost: {}".format(zoneNumber, tempCost))
                     if tempCost < cost:
                         path = tempPath
                         cost = tempCost
@@ -660,12 +824,17 @@ class Controller:
             for zoneNumber in range(1, 3):
                 if self.puckInZone[zoneColor][zoneNumber] <= 24:
                     tempPath, tempCost = self.SearchPathToZone(zoneColor, zoneNumber, robotNumber, costMap)
-                    print("Path to color zone number: {}, cost: {}".format(zoneNumber, tempCost))
+                    #print("Path to color zone number: {}, cost: {}".format(zoneNumber, tempCost))
                     if tempCost < cost:
                         path = tempPath
                         cost = tempCost
 
-        print("Path: ", path)
+        #print("Path: ", path)
+        if len(path) > 0:
+            self.bots[robotNumber - 1].aimPosition = path[len(path)-1]
+        else:
+            self.bots[robotNumber - 1].aimPosition = self.bots[robotNumber - 1].robotPosition
+
         return path
 
     def SearchPathToZone(self, zoneColor: ZoneColor, zoneNumber, robotNumber, costMap):
@@ -691,7 +860,7 @@ class Controller:
 
             #print('Neighbors {}'.format(self.GetNeighbors(currentPos)))
 
-            for next in self.GetNeighbors(currentPos):
+            for next in self.GetNeighborsLikeMPC(currentPos):
                 new_cost = currentCost[currentPos] + costMap[next[0]][next[1]]
 
                 #print('try next pos {}, currentCost {}, costMap {}'. format(next, currentCost[currentPos], costMap[next[0]][next[1]]))
@@ -733,7 +902,7 @@ class Controller:
             if currentPos == goalPos:
                 break
 
-            for next in self.GetNeighbors(currentPos):
+            for next in self.GetNeighborsLikeMPC(currentPos):
                 new_cost = currentCost[currentPos] + costMap[next[0]][next[1]]
                 if next not in currentCost or new_cost < currentCost[next]:
                     currentCost[next] = new_cost
@@ -755,6 +924,9 @@ class Controller:
 
     def TaxicabNorm(self, position1, position2):
         return abs(position2[0] - position1[0]) + abs(position2[1] - position1[1])
+
+    def Norm2(self, position1, position2):
+        return math.sqrt((position2[0] - position1[0])**2 + (position2[1] - position1[1])**2)
 
     def GetNeighbors(self, position):
         x, y = position
@@ -816,6 +988,32 @@ class Controller:
 
         return result
 
+    def GetNeighborsLikeMPC(self, position):
+        x, y = position
+        result = [(x, y+1), (x+1, y), (x, y-1), (x-1, y)] #N E S W
+
+        if x == 0:
+            result.remove((x-1, y))
+        elif x == 11:
+            result.remove((x+1, y))
+
+        if y == 0:
+            result.remove((x, y - 1))
+        elif y == 11:
+            result.remove((x, y + 1))
+
+        toRemove = []
+        for i in result:
+            if self.robotMap[i[0]][i[1]] == -1:
+                toRemove.append(i)
+
+        for i in toRemove:
+            if i in result:
+                result.remove(i)
+
+
+        return result
+
     def MakeOneStepInPath(self, robotNumber):
         robotState = self.bots[robotNumber - 1].robotState
         if len(self.bots[robotNumber - 1].path) >= 2 and (robotState == RobotState.READY or robotState == RobotState.WAIT):
@@ -828,13 +1026,14 @@ class Controller:
                 self.bots[robotNumber - 1].robotState = RobotState.FORWARD
                 x,y = self.ConvertOnRealCoordinates(nextPos[0], nextPos[1])
                 self.bots[robotNumber - 1].sendCommand(robotNumber, str(RobotCommand.MOVE_TO_POSITION), [x,y])
+                self.Logger()
 
             else:
                 self.bots[robotNumber - 1].robotState = RobotState.WAIT
                 self.bots[robotNumber - 1].waitTime += 1
 
                 if self.bots[robotNumber - 1].waitTime == 100:
-                    print('Wait time finish')
+                    #print('Wait time finish')
                     self.RemoveRobotPathFromPathMap(robotNumber)
                     if self.bots[robotNumber - 1].backToFinishPosition:
                         self.bots[robotNumber - 1].path = self.SearchNearestPathToPosition(
@@ -847,7 +1046,7 @@ class Controller:
                     self.AddRobotPathToMap(robotNumber)
 
                 if self.bots[robotNumber - 1].waitTime == 800:
-                    print('Wait time finish')
+                    #print('Wait time finish')
                     self.RemoveRobotPathFromPathMap(robotNumber)
                     if self.bots[robotNumber - 1].backToFinishPosition:
                         self.bots[robotNumber - 1].path = self.SearchNearestPathToPosition(
@@ -860,7 +1059,7 @@ class Controller:
                     self.AddRobotPathToMap(robotNumber)
 
                 if self.bots[robotNumber - 1].waitTime == 1600:
-                    print('Wait time finish')
+                    #print('Wait time finish')
                     self.bots[robotNumber - 1].waitTime = 0
                     self.RemoveRobotPathFromPathMap(robotNumber)
                     if self.bots[robotNumber - 1].backToFinishPosition:
@@ -955,11 +1154,78 @@ class Controller:
 
         return [x_coord[j], y_coord[i]]
 
+    def ConvertOnMapCoordinates(self, x):
+        y_coord = {2.85: 0, 2.4: 1, 1.8: 2, 1.2: 3, 0.75: 4, 0.3: 5, -0.3: 6, -0.75: 7, -1.2: 8, -1.8: 9, -2.4: 10, -2.85: 11}
+        x_coord = {2.7: 0, 2.25: 1, 1.8: 2, 1.2: 3, 0.75: 4, 0.3: 5, -0.3: 6, -0.75: 7, -1.2: 8, -1.8: 9, -2.25: 10, -2.7: 11}
 
+        return (x_coord[x[1]], y_coord[x[0]])
+
+    def Logger(self):
+        path_length = []
+        position = []
+        aim = []
+        color = []
+        path = []
+        pack_in_color_zone = []
+        pack_delivered = []
+
+        pack_in_color_zone.append('red,{}'.format(self.puckInZone[ZoneColor.RED][1]+self.puckInZone[ZoneColor.RED][2]))
+        pack_in_color_zone.append(
+            'green,{}'.format(self.puckInZone[ZoneColor.GREEN][1] + self.puckInZone[ZoneColor.GREEN][2]))
+        pack_in_color_zone.append(
+            'blue,{}'.format(self.puckInZone[ZoneColor.BLUE][1] + self.puckInZone[ZoneColor.BLUE][2]))
+        pack_in_color_zone.append(
+            'yellow,{}'.format(self.puckInZone[ZoneColor.YELLOW][1] + self.puckInZone[ZoneColor.YELLOW][2]))
+
+        for i in range(len(self.bots)):
+            path_length.append(self.bots[i].totalPathLength)
+
+            conv_pos = self.ConvertOnRealCoordinates(self.bots[i].robotPosition[0], self.bots[i].robotPosition[1])
+            position.append('{},{}'.format(conv_pos[0], conv_pos[1]))
+
+            conv_aim_pos = self.ConvertOnRealCoordinates(self.bots[i].aimPosition[0], self.bots[i].aimPosition[1])
+            aim.append('{},{}'.format(conv_aim_pos[0], conv_aim_pos[1]))
+
+            if self.bots[i].puckColor == PuckColor.RED:
+                color.append('red')
+            elif self.bots[i].puckColor == PuckColor.GREEN:
+                color.append('green')
+            elif self.bots[i].puckColor == PuckColor.BLUE:
+                color.append('blue')
+            elif self.bots[i].puckColor == PuckColor.YELLOW:
+                color.append('yellow')
+            else:
+                color.append('n')
+
+            pack_delivered.append(self.bots[i].packs_delivered)
+
+            path.append([])
+            for j in range(len(self.bots[i].path)):
+                conv_pos = self.ConvertOnRealCoordinates(self.bots[i].path[j][0], self.bots[i].path[j][1])
+                path[i].append('{},{}'.format(conv_pos[0], conv_pos[1]))
+
+        self.csv_writer.writerow([time.time() - self.start_time])
+        self.csv_writer.writerow(path_length)
+        self.csv_writer.writerow(position)
+        self.csv_writer.writerow(aim)
+        self.csv_writer.writerow(color)
+        self.csv_writer.writerow(pack_in_color_zone)
+        self.csv_writer.writerow(pack_delivered)
+        for i in range(len(self.bots)):
+            self.csv_writer.writerow(path[i])
 
 def main():
     rospy.init_node('testBot_controller')
-    controller = Controller()
+    file_csv = ''
+    file_robots = ''
+    if len(sys.argv) == 3:
+        file_robots = sys.argv[1]
+        file_csv = sys.argv[2]
+
+    elif len(sys.argv) == 2:
+        file_robots = sys.argv[1]
+
+    controller = Controller(file_robots, file_csv)
     while not rospy.is_shutdown():
         controller.mianLoop()
         rospy.sleep(0.01)
