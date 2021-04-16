@@ -104,6 +104,8 @@ class Controller:
         self.botsFinished = []
         self.file_robots_name = file_robots
 
+        self.planning_cycle_counter = 0
+
         if file_robots == '':
             self.bots.append(RobotParameters('bot1', (3, 6), -math.pi/2, (3, 6), self.callbackRobotAnswerBot))
             self.bots.append(RobotParameters('bot2',  (5, 3), math.pi, (5, 3), self.callbackRobotAnswerBot))
@@ -152,7 +154,7 @@ class Controller:
 
         print()
 
-
+        '''
         plt.ion()
         self.fig = plt.figure()
 
@@ -161,7 +163,7 @@ class Controller:
         plt.grid(True)
 
         plt.show()
-
+        '''
         print("Start")
         rospy.sleep(1)
 
@@ -196,7 +198,7 @@ class Controller:
             self.updateRobot(i+1)
 
         self.CalculationOnePathStep()
-        self.DrawCostFunction()
+        #self.DrawCostFunction()
 
         finished = True
         for i in self.botsFinished:
@@ -319,7 +321,7 @@ class Controller:
                     conv_pos = self.ConvertOnRealCoordinates(rob_pos[0], rob_pos[1])
                     conv_next_pos = self.ConvertOnRealCoordinates(self.bots[robotNumber-1].nextStep[0], self.bots[robotNumber-1].nextStep[1])
                     self.bots[robotNumber - 1].pathLength += self.Norm2(conv_pos, conv_next_pos)
-                    self.bots[robotNumber - 1].totalPathLength += self.Norm2(conv_pos, conv_next_pos)
+                    self.bots[robotNumber - 1].totalPathLength += self.TaxicabNorm(rob_pos, self.bots[robotNumber-1].nextStep)
                     self.bots[robotNumber-1].robotPosition = self.bots[robotNumber-1].nextStep
 
                 self.bots[robotNumber-1].robotState = RobotState.READY
@@ -334,7 +336,7 @@ class Controller:
                     conv_pos = self.ConvertOnRealCoordinates(rob_pos[0], rob_pos[1])
                     conv_next_pos = self.ConvertOnRealCoordinates(self.bots[robotNumber - 1].nextStep[0], self.bots[robotNumber - 1].nextStep[1])
                     self.bots[robotNumber - 1].pathLength += self.Norm2(conv_pos, conv_next_pos)
-                    self.bots[robotNumber - 1].totalPathLength += self.Norm2(conv_pos, conv_next_pos)
+                    self.bots[robotNumber - 1].totalPathLength += self.TaxicabNorm(rob_pos, self.bots[robotNumber-1].nextStep)
                     self.bots[robotNumber - 1].robotPosition = self.bots[robotNumber - 1].nextStep
 
                 self.bots[robotNumber-1].robotState = RobotState.READY
@@ -1697,7 +1699,7 @@ class Controller:
         if not (tempReadyBots == len(self.bots)):
             return
 
-        #input()
+        self.planning_cycle_counter += 1
 
         x0 = list()
         for i in range(len(self.bots)):
@@ -1751,6 +1753,7 @@ class Controller:
         input()
         '''
 
+        '''
         pre_x = self.mpc.data.prediction(('_x', 'pos_x'))
         pre_y = self.mpc.data.prediction(('_x', 'pos_y'))
         distance = self.mpc.data.prediction(('_x', 'distance'))
@@ -1810,6 +1813,7 @@ class Controller:
         print('\033[91mCost function value: {}\033[0m'.format((sum(lterm)+mterm)))
 
         print('Controll: {}'.format(self.u0))
+        '''
 
         for i in range(len(self.bots)):
             self.bots[i].newPathStep = True
@@ -2438,6 +2442,7 @@ class Controller:
                 prediction[i].append('{},{}'.format(pre_pos[i][j][0], pre_pos[i][j][1]))
 
         self.csv_writer.writerow([time.time() - self.start_time])
+        self.csv_writer.writerow([self.planning_cycle_counter])
         self.csv_writer.writerow(path_length)
         self.csv_writer.writerow(position)
         self.csv_writer.writerow(aim)

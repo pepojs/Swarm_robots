@@ -88,6 +88,7 @@ class RobotParameters:
         self.waitTime = 0
         self.totalPathLength = 0
         self.packs_delivered = 0
+        self.next_planning = False
 
         self.pubController = rospy.Publisher('/' + robotName + '/robotController', String, queue_size=10)
         self.pubRobotStop = rospy.Publisher("/" + robotName + "/robotStop", Bool, queue_size=10)
@@ -105,6 +106,8 @@ class Controller:
         self.bots = []
         self.botsFinished = []
         self.file_robots_name = file_robots
+
+        self.planning_cycle_counter = 0
 
         if file_robots == '':
             self.bots.append(RobotParameters('bot1', (3, 6), -math.pi/2, (3, 6), self.callbackRobotAnswerBot))
@@ -189,6 +192,7 @@ class Controller:
                 break
 
         if finished:
+            self.Logger()
             print("Work finished !!!")
             exit(0)
 
@@ -252,7 +256,8 @@ class Controller:
                     self.bots[robotNumber-1].robotState = RobotState.READY
 
         elif robotState == RobotState.IDLE:
-             if self.bots[robotNumber-1].puckColor == PuckColor.NONPUCK:
+            self.Logger()
+            if self.bots[robotNumber-1].puckColor == PuckColor.NONPUCK:
                 self.bots[robotNumber - 1].path = self.SearchPathToNearestZone(ZoneColor.BLACK, robotNumber, self.GenerateCostMapForRobot(robotNumber))
                 self.AddRobotPathToMap(robotNumber)
                 self.bots[robotNumber - 1].zoneColor = ZoneColor.BLACK
@@ -316,9 +321,7 @@ class Controller:
                 lastPos = self.bots[robotNumber-1].robotPosition
                 currentPos = self.bots[robotNumber-1].path[1]
 
-                conv_pos = self.ConvertOnRealCoordinates(lastPos[0], lastPos[1])
-                conv_pos_current = self.ConvertOnRealCoordinates(currentPos[0], currentPos[1])
-                self.bots[robotNumber - 1].totalPathLength += self.Norm2(conv_pos, conv_pos_current)
+                self.bots[robotNumber - 1].totalPathLength += self.TaxicabNorm(currentPos, lastPos)
 
                 if not (currentPos in self.listZoneEnterPosition):
                     self.robotMap[lastPos[0]][lastPos[1]] = 0
@@ -809,6 +812,12 @@ class Controller:
         return costMap
 
     def SearchPathToNearestZone(self, zoneColor: ZoneColor, robotNumber, costMap):
+        if self.bots[robotNumber - 1].next_planning:
+            for i in range(len(self.bots)):
+                self.bots[i].next_planning = False
+
+            self.planning_cycle_counter += 1
+
         path = []
         cost = math.inf
         if zoneColor == ZoneColor.BLACK:
@@ -835,6 +844,7 @@ class Controller:
         else:
             self.bots[robotNumber - 1].aimPosition = self.bots[robotNumber - 1].robotPosition
 
+        self.bots[robotNumber - 1].next_planning = True
         return path
 
     def SearchPathToZone(self, zoneColor: ZoneColor, zoneNumber, robotNumber, costMap):
@@ -886,6 +896,12 @@ class Controller:
         return path, currentCost[goalPos]
 
     def SearchNearestPathToPosition(self, position, robotNumber, costMap):
+        if self.bots[robotNumber - 1].next_planning:
+            for i in range(len(self.bots)):
+                self.bots[i].next_planning = False
+
+            self.planning_cycle_counter += 1
+
         goalPos = position
 
         frontier = PriorityQueue()
@@ -919,7 +935,14 @@ class Controller:
         path.append(self.bots[robotNumber - 1].robotPosition)
         path.reverse()
 
+        if len(path) > 0:
+            self.bots[robotNumber - 1].aimPosition = path[len(path)-1]
+        else:
+            self.bots[robotNumber - 1].aimPosition = self.bots[robotNumber - 1].robotPosition
+
         print("Path: ", path)
+
+        self.bots[robotNumber - 1].next_planning = True
         return path
 
     def TaxicabNorm(self, position1, position2):
@@ -1205,6 +1228,7 @@ class Controller:
                 path[i].append('{},{}'.format(conv_pos[0], conv_pos[1]))
 
         self.csv_writer.writerow([time.time() - self.start_time])
+        self.csv_writer.writerow([self.planning_cycle_counter])
         self.csv_writer.writerow(path_length)
         self.csv_writer.writerow(position)
         self.csv_writer.writerow(aim)

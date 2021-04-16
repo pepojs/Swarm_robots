@@ -1,0 +1,7 @@
+#!/bin/bash
+
+TIMEOUT=40
+SUBSTRING='The physics engine'
+COMMAND="argos3 -c scenario_r4_p8.argos"
+expect -c "set echo \"-noecho\"; set timeout $TIMEOUT; spawn -noecho $COMMAND; \
+expect \"$SUBSTRING\" { exit 0 } timeout { puts \"\nTimed out!\"; exit 1 }"

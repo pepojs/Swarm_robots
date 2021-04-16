@@ -21,11 +21,12 @@ class Display:
         self.file = None
         self.line_offset = []
         self.line_counter = 0
-        self.line_counter_tick = 7
+        self.line_counter_tick = 8
         self.csv_reader = None
 
         self.number_of_robots = 0
         self.time = 0
+        self.planning_cycles = 0
 
         self.prediction = False
         self.display_prediction = True
@@ -149,6 +150,9 @@ class Display:
                     self.time = float(row[0])
 
                     row = next(self.csv_reader)
+                    self.planning_cycles = int(row[0])
+
+                    row = next(self.csv_reader)
                     self.robot_path_length = [float(j) for j in row]
 
                     row = next(self.csv_reader)
@@ -193,6 +197,9 @@ class Display:
                 if self.line_counter < len(self.line_offset)-1:
                     row = next(self.csv_reader)
                     self.time = float(row[0])
+
+                    row = next(self.csv_reader)
+                    self.planning_cycles = int(row[0])
 
                     row = next(self.csv_reader)
                     self.robot_path_length = [float(j) for j in row]
@@ -350,6 +357,7 @@ class Display:
         ax.text(3.0, 3.2, "Time: {:<5.4f}".format(float(self.time)))
         ax.text(0, 3.2, "Path length: {:>5.4f}".format(sum(self.robot_path_length)))
         ax.text(3.0, 3.6, "File: " + self.file_name)
+        ax.text(0, 3.6, "Planning cycles: {}".format(self.planning_cycles))
 
         plt.pause(0.001)
 

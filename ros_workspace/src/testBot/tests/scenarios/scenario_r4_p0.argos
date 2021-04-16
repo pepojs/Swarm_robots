@@ -80,7 +80,7 @@
           <body position="-1.2,-0.3,0" orientation="0,0,0"/>
           <controller config="argos_ros_bot_lit"/>
     </foot-bot>
-    
+    <!--
     <foot-bot id="bot5">
           <body position="0.75,1.8,0" orientation="-90,0,0"/>
           <controller config="argos_ros_bot_lit"/>
@@ -100,7 +100,7 @@
           <body position="-1.8,0.75,0" orientation="0,0,0"/>
           <controller config="argos_ros_bot_lit"/>
     </foot-bot>
-    
+
     <foot-bot id="bot9">
           <body position="-0.75,2.7,0" orientation="-90,0,0"/>
           <controller config="argos_ros_bot_lit"/>
@@ -120,7 +120,7 @@
           <body position="-2.85,-0.75,0" orientation="0,0,0"/>
           <controller config="argos_ros_bot_lit"/>
     </foot-bot> 
-    
+
     <foot-bot id="bot13">
           <body position="0.75,2.7,0" orientation="-90,0,0"/>
           <controller config="argos_ros_bot_lit"/>
@@ -140,7 +140,7 @@
           <body position="-2.85,0.75,0" orientation="0,0,0"/>
           <controller config="argos_ros_bot_lit"/>
     </foot-bot>
-    <!--
+
     <foot-bot id="bot17">
           <body position="-0.75,1.8,0" orientation="-90,0,0"/>
           <controller config="argos_ros_bot_lit"/>
@@ -161,7 +161,7 @@
           <controller config="argos_ros_bot_lit"/>
     </foot-bot>
     -->
-
+    <!--
     <cylinder id="red_puck" height="0.1" radius="0.05" mass="0.1"
                   movable="true">
           <body position="-0.1,-0.1,0" orientation="0,0,0"/>
@@ -305,7 +305,7 @@
                  intensity="1.0"/>
           </leds>
     </cylinder>
-    <!--
+  
     <cylinder id="red_puck4" height="0.1" radius="0.05" mass="0.1"
                   movable="true">
           <body position="0.5,0.5,0" orientation="0,0,0"/>

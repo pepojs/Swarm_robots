@@ -1,0 +1,14 @@
+#!/usr/bin/python3
+
+import time
+import subprocess
+import sys
+
+if len(sys.argv) != 2:
+    print("Wrong number of arguments")
+    exit(-1)
+
+pid_argos = subprocess.Popen(["gnome-terminal", "argos3", "-c", sys.argv[1]])
+
+pid_robots = subprocess.Popen(["gnome-terminal", "--", "./run_robots.bash", "2"])
+

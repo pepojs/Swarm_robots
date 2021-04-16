@@ -1,0 +1,3 @@
+#!/bin/bash
+
+rosrun testBot testBot_robot_global_loc_pause_mpc.py

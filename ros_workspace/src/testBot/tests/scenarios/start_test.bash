@@ -1,3 +1,0 @@
-#!/bin/bash
-gnome-terminal -- argos3 -c scenerio_r4_p8.argos
-sleep 40
