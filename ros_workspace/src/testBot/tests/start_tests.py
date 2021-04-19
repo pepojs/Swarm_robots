@@ -27,15 +27,17 @@ for k in range(test_counter):
     rest_of_division = int(sys.argv[2])%4
     robots_counter = 1
 
+    #pid_robots.append(subprocess.Popen(["xterm", "-e", "./run_robots.py", str(robots_counter), str(robots_counter+int(sys.argv[2])-1)]))
+    
     for i in range(number_of_loops):
         pid_robots.append(subprocess.Popen(["xterm", "-e", "./run_robots.py", str(robots_counter), str(robots_counter+3)]))
-        time.sleep(1)
+        time.sleep(8)
         robots_counter += 4
 
     if rest_of_division != 0:
         pid_robots.append(subprocess.Popen(["xterm", "-e", "./run_robots.py", str(robots_counter), str(robots_counter+rest_of_division-1)]))
     
-    time.sleep(5)
+    time.sleep(10)
 
     pid_xdotool = subprocess.run(["xdotool", "search", "--name", "ARGoS v3.0.0-beta56"], stdout=subprocess.PIPE, universal_newlines=True)
     window_ID = pid_xdotool.stdout

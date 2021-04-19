@@ -129,7 +129,7 @@ class Controller:
         self.SetEnterZonePositionMPC()
         self.SetPuckInZone()
 
-        self.modelType = 2
+        self.modelType = 1
         if self.modelType == 2:
             model = self.robotKinematicModel2()
             self.setupMPC2(model)
@@ -721,11 +721,11 @@ class Controller:
         lterm = SX(0)
 
         for i in range(len(self.bots)):
-            #mterm += w_mterm_dist * self.MyNorm((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
+            #mterm += w_mterm_dist * self.MyNorm2((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
             w_mterm_dist*fabs(model.x['pos_x', i] - model.tvp['aim_x', i]) + w_mterm_dist*fabs(model.x['pos_y', i] - model.tvp['aim_y', i])
             lterm += w_lterm_dist*fabs(model.x['pos_x', i] - model.tvp['aim_x', i]) \
                       + w_lterm_dist*fabs(model.x['pos_y', i] - model.tvp['aim_y', i])
-            #lterm += w_lterm_dist * self.MyNorm((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
+            #lterm += w_lterm_dist * self.MyNorm2((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
             lterm += w_lterm_path*model.x['distance', i]
 
 
@@ -901,9 +901,8 @@ class Controller:
         for i in range(len(self.bots)):
             mterm += w_mterm_dist*fabs(model.x['pos_x', i] - model.tvp['aim_x', i]) + w_mterm_dist*fabs(model.x['pos_y', i] - model.tvp['aim_y', i])
             lterm += w_lterm_dist*fabs(model.x['pos_x', i] - model.tvp['aim_x', i]) \
-                      + w_lterm_dist*fabs(model.x['pos_y', i] - model.tvp['aim_y', i])
+                     + w_lterm_dist*fabs(model.x['pos_y', i] - model.tvp['aim_y', i])
 
-            #lterm += self.Norm2([model.x['pos_x', i], model.x['pos_y', i]], [model.tvp['aim_x', i],  model.tvp['aim_y', i]])
             lterm += w_lterm_path * model.x['distance', i]
 
         for i in range(len(self.bots)):

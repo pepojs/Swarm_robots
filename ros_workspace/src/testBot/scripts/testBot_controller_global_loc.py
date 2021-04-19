@@ -323,8 +323,8 @@ class Controller:
 
                 self.bots[robotNumber - 1].totalPathLength += self.TaxicabNorm(currentPos, lastPos)
 
-                if not (currentPos in self.listZoneEnterPosition):
-                    self.robotMap[lastPos[0]][lastPos[1]] = 0
+                #if not (currentPos in self.listZoneEnterPosition):
+                self.robotMap[lastPos[0]][lastPos[1]] = 0
 
                 self.bots[robotNumber-1].path.remove(lastPos)
                 self.RemoveOneStepFromPathMap(robotNumber, lastPos)
@@ -632,19 +632,13 @@ class Controller:
         j = 1
         for i in self.bots:
             self.robotMap[i.robotPosition[0]][i.robotPosition[1]] = j
+            '''
             if i.robotPosition in self.listZoneEnterPosition:
                 neighbors = self.GetNeighborsLikeMPC(i.robotPosition)
-                '''
-                if len(neighbors) == 1:
-                    neighbor = neighbors[0]
-                    dx = i.robotPosition[0] - neighbor[0]
-                    dy = i.robotPosition[1] - neighbor[1]
-                    self.robotMap[neighbor[0]][neighbor[1]] = j
-                    self.robotMap[neighbor[0] - dx][neighbor[1] - dy] = j
-                else:
-                '''
+                
                 for k in neighbors:
                     self.robotMap[k[0]][k[1]] = j
+            '''
             j = j + 1
 
     def GenerateStartPathMap(self):
