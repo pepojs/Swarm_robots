@@ -145,7 +145,7 @@ class Display:
             plt.pause(.0001)
 
             while self.run and not self.finish:
-                if self.line_counter < len(self.line_offset)-1:
+                if self.line_counter + self.line_counter_tick < len(self.line_offset)-1:
                     row = next(self.csv_reader)
                     self.time = float(row[0])
 
@@ -194,7 +194,7 @@ class Display:
             if not self.run and self.change_state:
                 self.change_state = False
 
-                if self.line_counter < len(self.line_offset)-1:
+                if self.line_counter + self.line_counter_tick < len(self.line_offset)-1:
                     row = next(self.csv_reader)
                     self.time = float(row[0])
 

@@ -193,6 +193,7 @@ class Controller:
 
         if finished:
             self.Logger()
+            self.csv_writer.writerow(['#finish'])
             print("Work finished !!!")
             exit(0)
 

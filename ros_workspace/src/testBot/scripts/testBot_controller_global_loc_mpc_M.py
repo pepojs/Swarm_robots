@@ -207,6 +207,7 @@ class Controller:
                 break
 
         if finished:
+            self.csv_writer.writerow(['#finish'])
             print("Work finished !!!")
             exit(0)
 
