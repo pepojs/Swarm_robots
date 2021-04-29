@@ -1477,44 +1477,58 @@ class Controller:
 
         naprzeciw_wartosc = 0.5 * pole_x * podzial_pole_y
         
-        ktore_bramy = rozklad_pol_u * (pole_3xy)# + (rozklad_pol_w * naprzeciw_wartosc))
+        ktore_bramy = rozklad_pol_u * (pole_3xy + (rozklad_pol_w * naprzeciw_wartosc))
 
-        brama_1_x = self.SaturationFunctionGrid(ktore_bramy, 180, 11.25, 0, 2.4) + \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 15, 0, 2.4) - \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 20, 0, 2.4) + \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 22.5, 0, 0.45) + \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 24, 0, 1.95)
+        brama_1_x = (y[0] / (fabs(y[0]) + 0.01)) * self.SaturationFunctionGrid(ktore_bramy, 35, -1, 0, fabs(y[0])) - \
+                    (y[0] / (fabs(y[0]) + 0.01)) * self.SaturationFunctionGrid(ktore_bramy, 35, 3, 0, fabs(y[0])) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 3, 0, 0.75) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 6.75, 0, 1.95) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 8, 0,  2.4) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 9, 0, 0.45) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 10, 0, 1.95) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 11.25, 0, 2.4) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 15, 0, 2.4) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 20, 0, 2.4) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 22.5, 0, 0.45) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 24, 0, 1.95)
         
-        brama_1_y = self.SaturationFunctionGrid(ktore_bramy, 180, 3, 0, 1.2) - \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 6.75, 0, 2.4) + \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 8, 0, 0.45) + \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 9, 0, 1.95) - \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 11.25, 0, 1.95) + \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 15, 0, 1.95) - \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 20, 0, 0.45) + \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 22.5, 0, 0.45) - \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 25.5, 0, 2.4)
+        brama_1_y = (y[1] / (fabs(y[1]) + 0.01)) * self.SaturationFunctionGrid(ktore_bramy, 30, -1, 0, fabs(y[1])) - \
+                    (y[1] / (fabs(y[1]) + 0.01)) * self.SaturationFunctionGrid(ktore_bramy, 30, 3, 0, fabs(y[1])) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 30, 3, 0, 1.2) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 30, 6.75, 0, 2.4) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 30, 8, 0, 0.45) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 30, 9, 0, 1.95) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 30, 11.25, 0, 1.95) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 30, 15, 0, 1.95) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 30, 20, 0, 0.45) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 30, 22.5, 0, 0.45) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 30, 25.5, 0, 2.4)
 
-        brama_2_x = self.SaturationFunctionGrid(ktore_bramy, 180, 3, 0, 1.2) +  \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 6.75, 0, 1.95) - \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 8, 0, 1.95) + \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 10, 0, 2.4) - \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 11.25, 0, 2.4) + \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 15, 0, 2.4) - \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 20, 0, 2.4) + \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 24, 0, 2.4) - \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 25.5, 0, 0.45)
+        brama_2_x = (y[0] / (fabs(y[0]) + 0.01)) * self.SaturationFunctionGrid(ktore_bramy, 35, -1, 0, fabs(y[0])) - \
+                    (y[0] / (fabs(y[0]) + 0.01)) * self.SaturationFunctionGrid(ktore_bramy, 35, 3, 0, fabs(y[0])) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 3, 0, 1.2) +  \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 6.75, 0, 1.95) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 8, 0, 1.95) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 10, 0, 2.4) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 11.25, 0, 2.4) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 15, 0, 2.4) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 20, 0, 2.4) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 22.5, 0, 0) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 24, 0, 2.4) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 25.5, 0, 0.45)
 
-        brama_2_y = self.SaturationFunctionGrid(ktore_bramy, 180, 3, 0, 1.2) - \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 6.75, 0, 2.4) + \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 9, 0, 2.4) - \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 10, 0, 0.45) - \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 11.25, 0, 1.95) + \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 15, 0, 1.95) - \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 20, 0, 1.95) + \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 22.5, 0, 2.4) - \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 24, 0, 0.45) - \
-                    self.SaturationFunctionGrid(ktore_bramy, 180, 25.5, 0, 1.95)
+        brama_2_y = (y[1] / (fabs(y[1]) + 0.01)) * self.SaturationFunctionGrid(ktore_bramy, 35, -1, 0, fabs(y[1])) - \
+                    (y[1] / (fabs(y[1]) + 0.01)) * self.SaturationFunctionGrid(ktore_bramy, 35, 3, 0, fabs(y[1])) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 3, 0, 1.2) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 6.75, 0, 2.4) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 9, 0, 2.4) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 10, 0, 0.45) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 11.25, 0, 1.95) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 15, 0, 1.95) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 20, 0, 1.95) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 22.5, 0, 2.4) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 24, 0, 0.45) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 35, 25.5, 0, 1.95)
 
 
         '''
@@ -1571,21 +1585,20 @@ class Controller:
 
         '''
 
-        norma1_x = fabs(x[0])
-        norma = brama_1_x + norma1_x
-        #norma1_y = 1#fabs(brama_1_y - x[1]+0.1)
+        norma1_x = fabs(brama_1_x - x[0])
+        norma1_y = fabs(brama_1_y - x[1])
 
-        #norma2_x = 2#fabs(brama_2_x - x[0]+0.1)
-        #norma2_y = 2#fabs(brama_2_y - x[1]+0.1)
+        norma2_x = fabs(brama_2_x - x[0])
+        norma2_y = fabs(brama_2_y - x[1])
 
-        #norma1_2 = (norma1_x + norma1_y) - (norma2_x + norma2_y)
+        norma1_2 = (norma1_x + norma1_y) - (norma2_x + norma2_y)
+        
+        czy_norma1 = -self.SaturationFunctionGrid(norma1_2, 180, 0, -1, 0)
+        czy_norma2 = self.SaturationFunctionGrid(norma1_2, 180, 0, 0, 1)
 
-        #czy_norma1 = -self.SaturationFunctionGrid(norma1_2, 180, 0, -1, 0)
-        #czy_norma2 = self.SaturationFunctionGrid(norma1_2, 180, 0, 0, 1)
+        norma = czy_norma1 * (norma1_x + norma1_y) + czy_norma2 * (norma2_x + norma2_y)
 
-        #norma = czy_norma1 * (norma1_x + norma1_y) + czy_norma2 * (norma2_x + norma2_y)
-
-        '''
+        
         wariant1_norma1_x = fabs(brama_1_x - y[0])
         wariant1_norma1_y = fabs(brama_1_y - y[1])
 
@@ -1596,20 +1609,20 @@ class Controller:
                     wariant1_norma2_x + wariant1_norma2_y)
 
         brama_koncowa = pole_y * podzial_pole_y
-        brama_pole_y_x = self.SaturationFunctionGrid(brama_koncowa, 180, -3.5, -1.2, 0) + \
-                         self.SaturationFunctionGrid(brama_koncowa, 180, -3.5, 0, 0.75) - \
-                         self.SaturationFunctionGrid(brama_koncowa, 180, -2.5, 0, 1.95) + \
-                         self.SaturationFunctionGrid(brama_koncowa, 180, 0, 0, 0.45) + \
-                         self.SaturationFunctionGrid(brama_koncowa, 180, 1.5, 0, 1.95)
+        brama_pole_y_x = self.SaturationFunctionGrid(brama_koncowa, 80, -3.5, -1.2, 0) + \
+                         self.SaturationFunctionGrid(brama_koncowa, 80, -3.5, 0, 0.75) - \
+                         self.SaturationFunctionGrid(brama_koncowa, 80, -2.5, 0, 1.95) + \
+                         self.SaturationFunctionGrid(brama_koncowa, 80, 0, 0, 0.45) + \
+                         self.SaturationFunctionGrid(brama_koncowa, 80, 1.5, 0, 1.95)
 
-        brama_pole_y_y = self.SaturationFunctionGrid(brama_koncowa, 180, -3.5, -0.75, 0) - \
-                         self.SaturationFunctionGrid(brama_koncowa, 180, -3.5, 0, 1.2) + \
-                         self.SaturationFunctionGrid(brama_koncowa, 180, -2.5, 0, 2.4) - \
-                         self.SaturationFunctionGrid(brama_koncowa, 180, -1.5, 0, 2.4) + \
-                         self.SaturationFunctionGrid(brama_koncowa, 180, 0, 0, 2.4) - \
-                         self.SaturationFunctionGrid(brama_koncowa, 180, 1.5, 0, 0.45) + \
-                         self.SaturationFunctionGrid(brama_koncowa, 180, 2.5, 0, 0.45) - \
-                         self.SaturationFunctionGrid(brama_koncowa, 180, 3.5, 0, 2.4)
+        brama_pole_y_y = self.SaturationFunctionGrid(brama_koncowa, 80, -3.5, -0.75, 0) - \
+                         self.SaturationFunctionGrid(brama_koncowa, 80, -3.5, 0, 1.2) + \
+                         self.SaturationFunctionGrid(brama_koncowa, 80, -2.5, 0, 2.4) - \
+                         self.SaturationFunctionGrid(brama_koncowa, 80, -1.5, 0, 2.4) + \
+                         self.SaturationFunctionGrid(brama_koncowa, 80, 0, 0, 2.4) - \
+                         self.SaturationFunctionGrid(brama_koncowa, 80, 1.5, 0, 0.45) + \
+                         self.SaturationFunctionGrid(brama_koncowa, 80, 2.5, 0, 0.45) - \
+                         self.SaturationFunctionGrid(brama_koncowa, 80, 3.5, 0, 2.4)
 
         wariant2_norma1_x = fabs(brama_1_x - brama_pole_y_x) + fabs(brama_pole_y_x - y[0])
         wariant2_norma1_y = fabs(brama_1_y - brama_pole_y_y) + fabs(brama_pole_y_y - y[1])
@@ -1622,10 +1635,10 @@ class Controller:
 
         norma = norma + rozklad_pol_u * rozklad_pol_t * (wariant1_norma) + rozklad_pol_u * rozklad_pol_w * (
             wariant2_norma)
-
-        blokada_srodka = -self.SaturationFunctionGrid(pole_y, 250, 0.3, -10, 0)
-        norma += blokada_srodka
-        '''
+        
+        #blokada_srodka = -self.SaturationFunctionGrid(pole_y, 250, 0.3, -10, 0)
+        #norma += blokada_srodka
+        
         return norma
 
     def SaturationFunction(self, x, scale=1):
