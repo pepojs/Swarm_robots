@@ -69,11 +69,12 @@ class Display:
 
         offset = 0
         for line in self.file:
-            if offset == 0:
-                offset += len(line)
-            else:
-                self.line_offset.append(offset)
-                offset += len(line)
+            if line != '#finish':
+                if offset == 0:
+                    offset += len(line)
+                else:
+                    self.line_offset.append(offset)
+                    offset += len(line)
         self.file.seek(0)
 
         self.csv_reader = csv.reader(self.file, delimiter=';')
@@ -86,7 +87,7 @@ class Display:
 
 
     def main_loop(self):
-        while self.line_counter < len(self.line_offset)-1:
+        while self.line_counter + self.line_counter_tick < len(self.line_offset)-1:
             row = next(self.csv_reader)
             self.time = float(row[0])
 

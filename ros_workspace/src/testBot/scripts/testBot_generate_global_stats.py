@@ -168,21 +168,26 @@ class Display:
         plt.grid(True)
 
 
-        labels = self.data.keys()
+        labels = sorted(self.data.keys())
         bar_value = []
         bar_label = []
         pack_cycles_std = []
         param_list = ['time', 'length', 'pack_cycles_mean', 'pack_cycles_min', 'pack_cycles_max']
-        titles = ['time', 'length', 'pack_cycles_mean', 'pack_cycles_min', 'pack_cycles_max']
+        titles = ['Czas trwania testu', 'Długość wszystkich ścieżek', 'Średni czas przewozu paczki', 'Minimalny czas przewozu paczki', 'Maksymalny czas przewozu paczki']
+        ylabel = ['Czas[cykle planowania]', 'Długość[komórka]', 'Czas[cykle planowania]', 'Czas[cykle planowania]', 'Czas[cykle planowania]']
 
         for j in range(len(param_list)):
             bar_value.append([])
             bar_label.append([])
-            i = 0
+
+            for i in range(len(self.data[sorted(self.data.keys())[0]])):
+                bar_value[j].append([])
 
             for robots in sorted(self.data):
-                bar_value[j].append([])
+
+
                 pack_cycles_std.append([])
+                i = 0
 
                 for packs in sorted(self.data[robots]):
                     if param_list[j] == 'pack_cycles_mean':
@@ -197,9 +202,9 @@ class Display:
 
                     else:
                         bar_value[j][i].append(self.data[robots][packs][param_list[j]][index[robots][packs]])
-                    bar_label[j].append(packs)
 
-                i += 1
+                    bar_label[j].append(packs)
+                    i += 1
 
 
         for j in range(len(param_list)):
@@ -222,14 +227,14 @@ class Display:
                                         width / len(bar_value[j]), label=bar_label[j][i]))
 
             # Add some text for labels, title and custom x-axis tick labels, etc.
-            ax.set_ylabel('Scores')
+            ax.set_ylabel(ylabel[j])
             ax.set_title(titles[j])
             ax.set_xticks(x)
             ax.set_xticklabels(labels)
             ax.legend()
 
-            for rect in rects:
-                ax.bar_label(rect, padding=3)
+            #for rect in rects:
+                #ax.bar_label(rect, padding=3)
 
             #fig.tight_layout()
 

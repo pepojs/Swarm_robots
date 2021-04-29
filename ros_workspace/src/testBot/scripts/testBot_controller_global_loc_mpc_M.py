@@ -207,7 +207,7 @@ class Controller:
                 break
 
         if finished:
-            self.csv_writer.writerow(['#finish'])
+            self.file_log_csv.write('#finish')
             print("Work finished !!!")
             exit(0)
 
@@ -722,11 +722,11 @@ class Controller:
         lterm = SX(0)
 
         for i in range(len(self.bots)):
-            #mterm += w_mterm_dist * self.MyNorm2((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
-            w_mterm_dist*fabs(model.x['pos_x', i] - model.tvp['aim_x', i]) + w_mterm_dist*fabs(model.x['pos_y', i] - model.tvp['aim_y', i])
-            lterm += w_lterm_dist*fabs(model.x['pos_x', i] - model.tvp['aim_x', i]) \
-                      + w_lterm_dist*fabs(model.x['pos_y', i] - model.tvp['aim_y', i])
-            #lterm += w_lterm_dist * self.MyNorm2((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
+            mterm += w_mterm_dist * self.MyNorm2((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
+            #mterm += w_mterm_dist*fabs(model.x['pos_x', i] - model.tvp['aim_x', i]) + w_mterm_dist*fabs(model.x['pos_y', i] - model.tvp['aim_y', i])
+            #lterm += w_lterm_dist*fabs(model.x['pos_x', i] - model.tvp['aim_x', i]) \
+            #          + w_lterm_dist*fabs(model.x['pos_y', i] - model.tvp['aim_y', i])
+            lterm += w_lterm_dist * self.MyNorm2((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
             lterm += w_lterm_path*model.x['distance', i]
 
 
@@ -1402,6 +1402,231 @@ class Controller:
         '''
 
         return dist_y
+
+    def MyNorm2(self, x, y):
+        norma = 0
+
+        pole1_x = -self.SaturationFunctionGrid(x[0], 180, -1.29, -1, 0) * \
+                  (-self.SaturationFunctionGrid(x[1], 180, 1.29, -1, 0)) + \
+                  (self.SaturationFunctionGrid(x[0], 180, -1.29, 0, 1) -
+                   self.SaturationFunctionGrid(x[0], 180, -0.5, 0, 1)) * \
+                  (self.SaturationFunctionGrid(x[1], 180, -0.5, 0, 1) -
+                   self.SaturationFunctionGrid(x[1], 180, 1.29, 0, 1))
+
+        pole2_x = 2 * (-self.SaturationFunctionGrid(x[0], 180, 1.29, -1, 0) *
+                       (self.SaturationFunctionGrid(x[1], 180, 1.29, 0, 1)) +
+                       (self.SaturationFunctionGrid(x[0], 180, -0.5, 0, 1) -
+                        self.SaturationFunctionGrid(x[0], 180, 1.29, 0, 1)) *
+                       (self.SaturationFunctionGrid(x[1], 180, 0.5, 0, 1) -
+                        self.SaturationFunctionGrid(x[1], 180, 1.29, 0, 1)))
+
+        pole3_x = 3 * (self.SaturationFunctionGrid(x[0], 180, 1.29, 0, 1) *
+                       (self.SaturationFunctionGrid(x[1], 180, -1.29, 0, 1)) +
+                       (self.SaturationFunctionGrid(x[0], 180, 0.5, 0, 1) -
+                        self.SaturationFunctionGrid(x[0], 180, 1.29, 0, 1)) *
+                       (self.SaturationFunctionGrid(x[1], 180, -1.29, 0, 1) -
+                        self.SaturationFunctionGrid(x[1], 180, 0.5, 0, 1)))
+
+        pole4_x = 4 * (self.SaturationFunctionGrid(x[0], 180, -1.29, 0, 1) *
+                       (-self.SaturationFunctionGrid(x[1], 180, -1.29, -1, 0)) +
+                       (self.SaturationFunctionGrid(x[0], 180, -1.29, 0, 1) -
+                        self.SaturationFunctionGrid(x[0], 180, 0.5, 0, 1)) *
+                       (self.SaturationFunctionGrid(x[1], 180, -1.29, 0, 1) -
+                        self.SaturationFunctionGrid(x[1], 180, -0.5, 0, 1)))
+
+        pole1_y = -self.SaturationFunctionGrid(y[0], 180, -1.29, -1, 0) * (-self.SaturationFunctionGrid(y[1], 180, 1.29, -1, 0)) + (
+                    self.SaturationFunctionGrid(y[0], 180, -1.29, 0, 1) - self.SaturationFunctionGrid(y[0], 180, -0.5, 0, 1)) * (
+                              self.SaturationFunctionGrid(y[1], 180, -0.5, 0, 1) - self.SaturationFunctionGrid(y[1], 180, 1.29, 0, 1))
+        pole2_y = 2 * (-self.SaturationFunctionGrid(y[0], 180, 1.29, -1, 0) * (self.SaturationFunctionGrid(y[1], 180, 1.29, 0, 1)) + (
+                    self.SaturationFunctionGrid(y[0], 180, -0.5, 0, 1) - self.SaturationFunctionGrid(y[0], 180, 1.29, 0, 1)) * (
+                                   self.SaturationFunctionGrid(y[1], 180, 0.5, 0, 1) - self.SaturationFunctionGrid(y[1], 180, 1.29, 0, 1)))
+        pole3_y = 3 * (self.SaturationFunctionGrid(y[0], 180, 1.29, 0, 1) * (self.SaturationFunctionGrid(y[1], 180, -1.29, 0, 1)) + (
+                    self.SaturationFunctionGrid(y[0], 180, 0.5, 0, 1) - self.SaturationFunctionGrid(y[0], 180, 1.29, 0, 1)) * (
+                                   self.SaturationFunctionGrid(y[1], 180, -1.29, 0, 1) - self.SaturationFunctionGrid(y[1], 180, 0.5, 0, 1)))
+        pole4_y = 4 * (self.SaturationFunctionGrid(y[0], 180, -1.29, 0, 1) * (-self.SaturationFunctionGrid(y[1], 180, -1.29, -1, 0)) + (
+                    self.SaturationFunctionGrid(y[0], 180, -1.29, 0, 1) - self.SaturationFunctionGrid(y[0], 180, 0.5, 0, 1)) * (
+                                   self.SaturationFunctionGrid(y[1], 180, -1.29, 0, 1) - self.SaturationFunctionGrid(y[1], 180, -0.5, 0, 1)))
+
+        pole_x = pole1_x + pole2_x + pole3_x + pole4_x
+        pole_y = pole1_y + pole2_y + pole3_y + pole4_y
+        
+        pole_3xy = 3 * pole_x * pole_y
+        abs_pola = (0.5-0.5*(self.SaturationFunction(pole_x - pole_y, 180)))*(pole_x - pole_y)#fabs(pole_x - pole_y)
+        
+        rozklad_pol_w = self.SaturationFunctionGrid(abs_pola, 180, 1.5, 0, 1) - self.SaturationFunctionGrid(abs_pola, 180, 2.5, 0, 1)
+        rozklad_pol_u = self.SaturationFunctionGrid(abs_pola, 180, 0.5, 0, 1)
+        rozklad_pol_t = -self.SaturationFunctionGrid(abs_pola, 180, 1.5, -1, 0) + self.SaturationFunctionGrid(abs_pola, 180, 2.5, 0, 1)
+
+        czy_podzial_pole_y_y = self.SaturationFunctionGrid(pole_y, 180, 0.5, 0, 1) - \
+                               self.SaturationFunctionGrid(pole_y, 180, 1.5, 0, 1) + \
+                               self.SaturationFunctionGrid(pole_y, 180, 2.5, 0, 1) - \
+                               self.SaturationFunctionGrid(pole_y, 180, 3.5, 0, 1)
+
+        czy_podzial_pole_y_x = self.SaturationFunctionGrid(pole_y, 180, 1.5, 0, 1) - \
+                               self.SaturationFunctionGrid(pole_y, 180, 2.5, 0, 1) + \
+                               self.SaturationFunctionGrid(pole_y, 180, 3.5, 0, 1)
+
+        wsp_pole_y = -self.SaturationFunctionGrid(pole_y, 180, 2.5, -1, 1)
+
+        podzial_pole_y_x = czy_podzial_pole_y_x * self.SaturationFunctionGrid(y[0], 250, wsp_pole_y * fabs(x[0] + 0.45),
+                                                              -1 * wsp_pole_y, 1 * wsp_pole_y)
+        podzial_pole_y_y = czy_podzial_pole_y_y * self.SaturationFunctionGrid(y[1], 250, -wsp_pole_y * fabs(x[1] - wsp_pole_y * 0.45),
+                                                              -1 * wsp_pole_y, 1 * wsp_pole_y)
+
+        podzial_pole_y = podzial_pole_y_x + podzial_pole_y_y
+
+        naprzeciw_wartosc = 0.5 * pole_x * podzial_pole_y
+        
+        ktore_bramy = rozklad_pol_u * (pole_3xy)# + (rozklad_pol_w * naprzeciw_wartosc))
+
+        brama_1_x = self.SaturationFunctionGrid(ktore_bramy, 180, 11.25, 0, 2.4) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 15, 0, 2.4) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 20, 0, 2.4) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 22.5, 0, 0.45) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 24, 0, 1.95)
+        
+        brama_1_y = self.SaturationFunctionGrid(ktore_bramy, 180, 3, 0, 1.2) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 6.75, 0, 2.4) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 8, 0, 0.45) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 9, 0, 1.95) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 11.25, 0, 1.95) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 15, 0, 1.95) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 20, 0, 0.45) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 22.5, 0, 0.45) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 25.5, 0, 2.4)
+
+        brama_2_x = self.SaturationFunctionGrid(ktore_bramy, 180, 3, 0, 1.2) +  \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 6.75, 0, 1.95) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 8, 0, 1.95) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 10, 0, 2.4) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 11.25, 0, 2.4) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 15, 0, 2.4) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 20, 0, 2.4) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 24, 0, 2.4) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 25.5, 0, 0.45)
+
+        brama_2_y = self.SaturationFunctionGrid(ktore_bramy, 180, 3, 0, 1.2) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 6.75, 0, 2.4) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 9, 0, 2.4) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 10, 0, 0.45) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 11.25, 0, 1.95) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 15, 0, 1.95) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 20, 0, 1.95) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 22.5, 0, 2.4) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 24, 0, 0.45) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 25.5, 0, 1.95)
+
+
+        '''
+        brama_1_x = (y[0] / (fabs(y[0]) + 0.01)) * self.SaturationFunctionGrid(ktore_bramy, 180, -1, 0, fabs(y[0])) - \
+                    (y[0] / (fabs(y[0]) + 0.01)) * self.SaturationFunctionGrid(ktore_bramy, 180, 3, 0, fabs(y[0])) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 3, 0, 0.75) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 6.75, 0, 1.95) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 8, 0,  2.4) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 9, 0, 0.45) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 10, 0, 1.95) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 11.25, 0, 2.4) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 15, 0, 2.4) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 20, 0, 2.4) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 22.5, 0, 0.45) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 24, 0, 1.95)
+        
+        brama_1_y = (y[1] / (fabs(y[1]) + 0.01)) * self.SaturationFunctionGrid(ktore_bramy, 180, -1, 0, fabs(y[1])) - \
+                    (y[1] / (fabs(y[1]) + 0.01)) * self.SaturationFunctionGrid(ktore_bramy, 180, 3, 0, fabs(y[1])) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 3, 0, 1.2) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 6.75, 0, 2.4) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 8, 0, 0.45) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 9, 0, 1.95) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 11.25, 0, 1.95) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 15, 0, 1.95) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 20, 0, 0.45) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 22.5, 0, 0.45) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 25.5, 0, 2.4)
+
+        brama_2_x = (y[0] / (fabs(y[0]) + 0.01)) * self.SaturationFunctionGrid(ktore_bramy, 180, -1, 0, fabs(y[0])) - \
+                    (y[0] / (fabs(y[0]) + 0.01)) * self.SaturationFunctionGrid(ktore_bramy, 180, 3, 0, fabs(y[0])) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 3, 0, 1.2) +  \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 6.75, 0, 1.95) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 8, 0, 1.95) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 10, 0, 2.4) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 11.25, 0, 2.4) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 15, 0, 2.4) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 20, 0, 2.4) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 22.5, 0, 0) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 24, 0, 2.4) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 25.5, 0, 0.45)
+
+        brama_2_y = (y[1] / (fabs(y[1]) + 0.01)) * self.SaturationFunctionGrid(ktore_bramy, 180, -1, 0, fabs(y[1])) - \
+                    (y[1] / (fabs(y[1]) + 0.01)) * self.SaturationFunctionGrid(ktore_bramy, 180, 3, 0, fabs(y[1])) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 3, 0, 1.2) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 6.75, 0, 2.4) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 9, 0, 2.4) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 10, 0, 0.45) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 11.25, 0, 1.95) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 15, 0, 1.95) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 20, 0, 1.95) + \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 22.5, 0, 2.4) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 24, 0, 0.45) - \
+                    self.SaturationFunctionGrid(ktore_bramy, 180, 25.5, 0, 1.95)
+
+        '''
+
+        norma1_x = fabs(x[0])
+        norma = brama_1_x + norma1_x
+        #norma1_y = 1#fabs(brama_1_y - x[1]+0.1)
+
+        #norma2_x = 2#fabs(brama_2_x - x[0]+0.1)
+        #norma2_y = 2#fabs(brama_2_y - x[1]+0.1)
+
+        #norma1_2 = (norma1_x + norma1_y) - (norma2_x + norma2_y)
+
+        #czy_norma1 = -self.SaturationFunctionGrid(norma1_2, 180, 0, -1, 0)
+        #czy_norma2 = self.SaturationFunctionGrid(norma1_2, 180, 0, 0, 1)
+
+        #norma = czy_norma1 * (norma1_x + norma1_y) + czy_norma2 * (norma2_x + norma2_y)
+
+        '''
+        wariant1_norma1_x = fabs(brama_1_x - y[0])
+        wariant1_norma1_y = fabs(brama_1_y - y[1])
+
+        wariant1_norma2_x = fabs(brama_2_x - y[0])
+        wariant1_norma2_y = fabs(brama_2_y - y[1])
+
+        wariant1_norma = czy_norma1 * (wariant1_norma1_x + wariant1_norma1_y) + czy_norma2 * (
+                    wariant1_norma2_x + wariant1_norma2_y)
+
+        brama_koncowa = pole_y * podzial_pole_y
+        brama_pole_y_x = self.SaturationFunctionGrid(brama_koncowa, 180, -3.5, -1.2, 0) + \
+                         self.SaturationFunctionGrid(brama_koncowa, 180, -3.5, 0, 0.75) - \
+                         self.SaturationFunctionGrid(brama_koncowa, 180, -2.5, 0, 1.95) + \
+                         self.SaturationFunctionGrid(brama_koncowa, 180, 0, 0, 0.45) + \
+                         self.SaturationFunctionGrid(brama_koncowa, 180, 1.5, 0, 1.95)
+
+        brama_pole_y_y = self.SaturationFunctionGrid(brama_koncowa, 180, -3.5, -0.75, 0) - \
+                         self.SaturationFunctionGrid(brama_koncowa, 180, -3.5, 0, 1.2) + \
+                         self.SaturationFunctionGrid(brama_koncowa, 180, -2.5, 0, 2.4) - \
+                         self.SaturationFunctionGrid(brama_koncowa, 180, -1.5, 0, 2.4) + \
+                         self.SaturationFunctionGrid(brama_koncowa, 180, 0, 0, 2.4) - \
+                         self.SaturationFunctionGrid(brama_koncowa, 180, 1.5, 0, 0.45) + \
+                         self.SaturationFunctionGrid(brama_koncowa, 180, 2.5, 0, 0.45) - \
+                         self.SaturationFunctionGrid(brama_koncowa, 180, 3.5, 0, 2.4)
+
+        wariant2_norma1_x = fabs(brama_1_x - brama_pole_y_x) + fabs(brama_pole_y_x - y[0])
+        wariant2_norma1_y = fabs(brama_1_y - brama_pole_y_y) + fabs(brama_pole_y_y - y[1])
+
+        wariant2_norma2_x = fabs(brama_2_x - brama_pole_y_x) + fabs(brama_pole_y_x - y[0])
+        wariant2_norma2_y = fabs(brama_2_y - brama_pole_y_y) + fabs(brama_pole_y_y - y[1])
+
+        wariant2_norma = czy_norma1 * (wariant2_norma1_x + wariant2_norma1_y) + czy_norma2 * (
+                    wariant2_norma2_x + wariant2_norma2_y)
+
+        norma = norma + rozklad_pol_u * rozklad_pol_t * (wariant1_norma) + rozklad_pol_u * rozklad_pol_w * (
+            wariant2_norma)
+
+        blokada_srodka = -self.SaturationFunctionGrid(pole_y, 250, 0.3, -10, 0)
+        norma += blokada_srodka
+        '''
+        return norma
 
     def SaturationFunction(self, x, scale=1):
         return 1-((scale*x)/(sqrt(1+(scale*x)**2)))

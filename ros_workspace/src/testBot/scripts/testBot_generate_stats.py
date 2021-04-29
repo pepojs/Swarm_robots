@@ -93,7 +93,7 @@ class Display:
 
 
     def main_loop(self):
-        while self.line_counter < len(self.line_offset)-1:
+        while self.line_counter + self.line_counter_tick < len(self.line_offset)-1:
             row = next(self.csv_reader)
             self.time = float(row[0])
 
