@@ -60,7 +60,7 @@ for k in range(test_counter):
     if sys.argv[3] == "MPC":
         data_output_name = data_output_name[len(data_output_name)-1].split('.')[0]+"_"+str(k)+"_MPC.data"
         try:
-            pid_controler = subprocess.run(["rosrun", "testBot", "testBot_controller_global_loc_mpc_M.py", sys.argv[1], data_output_name], timeout=2100)
+            pid_controler = subprocess.run(["rosrun", "testBot", "testBot_controller_global_loc_mpc_M.py", sys.argv[1], data_output_name])#, timeout=2100)
             file.write("Test {} finished! ".format(k))
             
         except KeyboardInterrupt:
