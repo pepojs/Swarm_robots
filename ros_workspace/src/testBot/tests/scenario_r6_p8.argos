@@ -1,0 +1,455 @@
+<?xml version="1.0"?>
+<argos-configuration>
+  <!-- ************************* -->
+  <!-- * General configuration * -->
+  <!-- ************************* -->
+  <framework>
+    <system threads="0"/>
+    <experiment length="0" ticks_per_second="11" random_seed="124"/> <!-- tps=14 -->
+  </framework>
+
+  <!-- *************** -->
+  <!-- * Controllers * -->
+  <!-- *************** -->
+  <controllers>
+    <argos_ros_bot_controller_lit id="argos_ros_bot_lit" library="libargos_ros_bot_lit.so">
+      <actuators>
+        <differential_steering implementation="default"/>
+	<leds implementation="default" medium="leds"/>
+	<!-- <footbot_distance_scanner implementation="default"/> -->
+        <footbot_gripper implementation="default"/>
+        <footbot_turret implementation="default"/>
+      </actuators>
+      <sensors>
+        <!-- <footbot_base_ground implementation="rot_z_only"/> -->
+        <!-- <footbot_motor_ground implementation="rot_z_only"/> -->
+        <footbot_proximity implementation="default" show_rays="false"/>
+        <colored_blob_omnidirectional_camera implementation="rot_z_only"
+                                             medium="leds" show_rays="false"/>
+        <!-- <footbot_distance_scanner implementation="rot_z_only"
+                                 show_rays="false" /> -->
+	<positioning implementation="default" />
+	<footbot_turret_encoder implementation="default" />
+      </sensors>
+      <!-- After the following number of time steps without receiving a
+           commanded velocity, the robots will stop. -->
+      <params stopWithoutSubscriberCount="10" /> <!-- 10 -->
+    </argos_ros_bot_controller_lit>
+  </controllers>
+
+  <!-- *********************** -->
+  <!-- * Arena configuration * -->
+  <!-- *********************** -->
+  <arena size="6.3, 6, 1" center="0,0,0">
+    <floor id="floor" source="image" path="Floor1s.png" />
+
+    <box id="wall_north" size="6.30,0.1,0.5" movable="false">
+      <body position="0,3,0" orientation="0,0,0"/>
+    </box>
+    <box id="wall_south" size="6.30,0.1,0.5" movable="false">
+      <body position="0,-3,0" orientation="0,0,0"/>
+    </box>
+    <box id="wall_east" size="0.1,6,0.5" movable="false">
+      <body position="3.15,0,0" orientation="0,0,0"/>
+    </box>
+    <box id="wall_west" size="0.1,6,0.5" movable="false">
+      <body position="-3.15,0,0" orientation="0,0,0"/>
+    </box>
+
+    <!--
+        The robots.  The number given under 'quantity' below should match
+        the value of 'n' in the launch file (e.g. the launch file created
+        by 'launch_demo.sh').
+    --> <!-- -0.525,-0.3 ; -1.875,2.7; -2.4,1.875; -0.3,0.525,0-->
+    <foot-bot id="bot1">
+          <body position="-0.3,1.2,0" orientation="-90,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+    
+    <foot-bot id="bot2">
+          <body position="1.2,0.3,0" orientation="-180,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+    
+    <foot-bot id="bot3">
+          <body position="0.3,-1.2,0" orientation="-270,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+
+    <foot-bot id="bot4">
+          <body position="-1.2,-0.3,0" orientation="0,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+    <!--
+    <foot-bot id="bot5">
+          <body position="0.75,1.8,0" orientation="-90,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+    -->
+    <foot-bot id="bot5">
+          <body position="1.8,0.75,0" orientation="-180,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+    <!--
+    <foot-bot id="bot7">
+          <body position="-0.75,-1.8,0" orientation="-270,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+    -->
+    <foot-bot id="bot6">
+          <body position="-1.8,0.75,0" orientation="0,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+    <!--
+    <foot-bot id="bot9">
+          <body position="-0.75,2.7,0" orientation="-90,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+
+    <foot-bot id="bot10">
+          <body position="2.85,0.75,0" orientation="-180,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+
+    <foot-bot id="bot11">
+          <body position="0.75,-2.7,0" orientation="-270,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+
+    <foot-bot id="bot12">
+          <body position="-2.85,-0.75,0" orientation="0,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot> 
+
+    <foot-bot id="bot13">
+          <body position="0.75,2.7,0" orientation="-90,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+
+    <foot-bot id="bot14">
+          <body position="2.85,-0.75,0" orientation="-180,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+
+    <foot-bot id="bot15">
+          <body position="-0.75,-2.7,0" orientation="-270,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+
+    <foot-bot id="bot16">
+          <body position="-2.85,0.75,0" orientation="0,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+
+    <foot-bot id="bot17">
+          <body position="-0.75,1.8,0" orientation="-90,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+
+    <foot-bot id="bot18">
+          <body position="1.8,-0.75,0" orientation="-180,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+
+    <foot-bot id="bot19">
+          <body position="0.75,-1.8,0" orientation="-270,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+
+    <foot-bot id="bot20">
+          <body position="-1.8,-0.75,0" orientation="0,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+    -->
+
+    <cylinder id="red_puck" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="-0.1,-0.1,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="red"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+    
+    <cylinder id="red_puck1" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="0.15,-0.2,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="red"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+
+    <cylinder id="red_puck2" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="0.3,0.3,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="red"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+
+    <cylinder id="blue_puck" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="-0.3,0.3,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="blue"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+    
+    <cylinder id="blue_puck1" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="0.25,0.45,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="blue"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+
+    <cylinder id="green_puck" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="0.1,0.1,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="green"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+
+    <cylinder id="green_puck1" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="-0.3,-0.25,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="green"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+
+    <cylinder id="yellow_puck" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="0.3,-0.32,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="yellow"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+    <!--
+    <cylinder id="red_puck3" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="-0.4,0.1,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="red"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+
+    <cylinder id="blue_puck2" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="0.5,-0.14,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="blue"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+    
+    <cylinder id="blue_puck3" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="-0.22,-0.38,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="blue"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+    
+    <cylinder id="green_puck2" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="-0.14,0.15,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="green"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+
+    <cylinder id="green_puck3" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="0.35,-0.14,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="green"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+
+    <cylinder id="yellow_puck1" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="-0.5, 0.27,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="yellow"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+
+    <cylinder id="yellow_puck2" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="-0.5, -0.5,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="yellow"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+
+    <cylinder id="yellow_puck3" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="0.1, 0.38,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="yellow"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+  
+    <cylinder id="red_puck4" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="0.5,0.5,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="red"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+
+    <cylinder id="red_puck5" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="-0.5,-0.1,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="red"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+
+    <cylinder id="blue_puck4" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="0.1,-0.5,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="blue"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+
+    <cylinder id="blue_puck5" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="-0.12,-0.5,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="blue"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+
+    <cylinder id="green_puck4" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="0.5,-0.5,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="green"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+
+    <cylinder id="green_puck5" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="0.49,0.08,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="green"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+
+    <cylinder id="green_puck6" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="-0.5,0.5,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="green"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+
+    <cylinder id="yellow_puck4" height="0.1" radius="0.05" mass="0.1"
+                  movable="true">
+          <body position="-0.1, 0.3,0" orientation="0,0,0"/>
+          <leds medium="leds">
+            <led offset="0,0,0.11" anchor="origin" color="yellow"
+                 intensity="1.0"/>
+          </leds>
+    </cylinder>
+    -->
+  </arena>
+
+  <!-- ******************* -->
+  <!-- * Physics engines * -->
+  <!-- ******************* -->
+  <physics_engines>
+    <dynamics2d id="dyn2d" iterations="220"/> <!-- iter = 270 -->
+    <!--<dynamics3d id="dyn3d" iterations="20">
+      <floor height="0.00"/>
+      <gravity g="9.8" />
+    </dynamics3d>-->
+
+  </physics_engines>
+
+  <!-- ********* -->
+  <!-- * Media * -->
+  <!-- ********* -->
+  <media>
+    <led id="leds"/>
+    <tag id="tags" index="grid" grid_size="20,20,20" />
+  </media>
+
+  <!-- ****************** -->
+  <!-- * Visualization * -->
+  <!-- ****************** -->
+  <visualization>
+    <qt-opengl lua_editor="false">
+	<camera>
+	<placement idx="0"
+                   position="0,0,4.5"
+		   up="1,0,0"                    
+ 		   look_at="0,0,0"
+                   lens_focal_length="20" />
+
+        <placement idx="1"
+                   position="0,0,1"
+		   up="1,0,0"                    
+ 		   look_at="0,0,0"
+                   lens_focal_length="20" />
+        
+        <placement idx="2"
+                   position="-2.4,2.4,1"
+		   up="1,0,0"                    
+ 		   look_at="-2.4,2.4,0"
+                   lens_focal_length="20" />
+
+        <placement idx="3"
+                   position="-2.4,-2.4,1"
+		   up="1,0,0"                    
+ 		   look_at="-2.4,-2.4,0"
+                   lens_focal_length="20" />
+        
+        <placement idx="4"
+                   position="2.4,2.4,1"
+		   up="1,0,0"                    
+ 		   look_at="2.4,2.4,0"
+                   lens_focal_length="20" />
+        
+	<placement idx="5"
+                   position="2.4,-2.4,1"
+		   up="1,0,0"                    
+ 		   look_at="2.4,-2.4,0"
+                   lens_focal_length="20" />
+
+	<placement idx="6"
+                   position="-4.3,0,3.6"
+		   up="1,0,0"                    
+ 		   look_at="0,0,0"
+                   lens_focal_length="20" />
+	
+
+	</camera>
+     </qt-opengl>		
+  </visualization>
+</argos-configuration>

@@ -247,9 +247,9 @@ class Controller:
                 break
 
         if finished:
+            self.Logger()
             self.file_log_csv.write('#finish')
             print("Work finished !!!")
-            self.Logger()
             exit(0)
 
         '''
@@ -930,7 +930,7 @@ class Controller:
             't_step': 0.5,
             'n_robust': 0,
             'store_full_solution': True,
-            'nlpsol_opts': {'ipopt.max_iter': 1500, 'ipopt.print_level': 3, 'ipopt.linear_solver': 'ma27'}#, 'ipopt.tol': 10e-2, 'ipopt.print_level': 0, 'ipopt.sb': 'yes', 'print_time': 0}
+            'nlpsol_opts': {'ipopt.max_iter': 1800, 'ipopt.print_level': 3, 'ipopt.linear_solver': 'ma27'}#, 'ipopt.tol': 10e-2, 'ipopt.print_level': 0, 'ipopt.sb': 'yes', 'print_time': 0}
             # 'ipopt.max_iter':500 'calc_lam_p':False , 'ipopt.tol': 10e-15, 'ipopt.acceptable_iter': 1000
         }
 
@@ -938,9 +938,9 @@ class Controller:
         self.mpc.set_param(**setup_mpc)
         self.mpc.set_tvp_fun(self.tvp_fun1)
 
-        w_lterm_dist = 55 #55
-        w_lterm_path = 19
-        w_lterm_avoid = 15
+        w_lterm_dist = 50 #55
+        w_lterm_path = 15 #19
+        w_lterm_avoid = 29 #15
         w_mterm_dist = 80 #80
         w_mterm = 6
         w_lterm = 1
@@ -1824,7 +1824,7 @@ class Controller:
 
         norma = norma + rozklad_pol_u * rozklad_pol_t * (wariant1_norma) + rozklad_pol_u * rozklad_pol_w * (wariant2_norma)
         
-        blokada_srodka = -self.SaturationFunctionGrid(pole_y, 250, 0.1, -10, 0)
+        blokada_srodka = -self.SaturationFunctionGrid(pole_y, 250, 0.2, -10, 0)
         norma += blokada_srodka
         
         return norma
