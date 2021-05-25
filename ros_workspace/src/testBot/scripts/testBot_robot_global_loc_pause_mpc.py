@@ -679,7 +679,7 @@ class TransportRobot:
         if puckPositionX == 1 and puckPositionY == 1:
             return PuckColor.NONPUCK
 
-        self.MoveToPosition(puckPositionX, puckPositionY, 0.05, 0.14, 1, 1)
+        self.MoveToPosition(puckPositionX, puckPositionY, 0.05, 0.11, 0.7, 1)
 
         self.gripper = True
         self.pubGripper.publish(self.gripper)

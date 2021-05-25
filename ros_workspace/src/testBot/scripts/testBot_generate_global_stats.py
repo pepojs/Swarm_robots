@@ -142,6 +142,7 @@ class Display:
 
         index = dict()
 
+
         for robots in sorted(self.data):
             index[robots] = dict()
             for packs in sorted(self.data[robots]):
@@ -156,16 +157,20 @@ class Display:
                 robot_load.append(self.data[robots][packs]['robot_load'][index[robots][packs]])
                 label.append(robots+', '+packs)
 
-        fig, ax = plt.subplots()
+        first = int(len(cycles_list) / 3)
 
-        for i in range(len(cycles_list)):
-            plt.plot(cycles_list[i], robot_load[i], label=label[i])
+        for j in range(first):
+            plt.figure(j)
+            fig, ax = plt.subplots()
 
-        ax.set_ylabel('Obciążenie [%]')
-        ax.set_xlabel('Czas [cykle planowania]')
-        ax.set_title('Obciążenie robotów')
-        ax.legend()
-        plt.grid(True)
+            for i in range(j*3, (j+1)*3): #range(len(cycles_list))
+                plt.plot(cycles_list[i], robot_load[i], label=label[i])
+
+            ax.set_ylabel('Obciążenie [%]')
+            ax.set_xlabel('Czas [cykle planowania]')
+            ax.set_title('Obciążenie robotów')
+            ax.legend()
+            plt.grid(True)
 
 
         labels = sorted(self.data.keys())
@@ -208,13 +213,19 @@ class Display:
 
 
         for j in range(len(param_list)):
-            plt.figure(j)
+            plt.figure(j+first)
             x = np.arange(len(labels))  # the label locations
             width = 0.6  # the width of the bars
 
             fig, ax = plt.subplots()
             rects = []
             for i in range(len(bar_value[j])):
+
+                # jesli r16, p24 przejdzie usun if !!!
+                if i == len(bar_value[j]) - 1:
+                    bar_value[j][i][3] = 0
+                    pack_cycles_std[i][3] = 0
+
                 if param_list[j] == 'pack_cycles_mean':
                     rects.append(ax.bar((x - width / 2) + (i + 0.5) * (width / len(bar_value[j])), bar_value[j][i],
                                          width / len(bar_value[j]), label=bar_label[j][i]))
@@ -237,6 +248,37 @@ class Display:
                 #ax.bar_label(rect, padding=3)
 
             #fig.tight_layout()
+
+        bar_value = []
+        bar_value.append([])
+        bar_value.append([])
+
+        bar_value[0].append(self.data['r12']['p08']['pack_cycles'][index['r12']['p08']])
+        bar_value[1].append(self.data['r12']['p16']['pack_cycles'][index['r12']['p16']])
+
+        plt.figure(len(param_list)+first)
+        fig, ax = plt.subplots()
+        width = 0.6
+        x = np.arange(8) + 1
+        for i in range(len(bar_value[0])):
+            rects = ax.bar(x, bar_value[0][i], width)
+
+        # Add some text for labels, title and custom x-axis tick labels, etc.
+        ax.set_ylabel('Czas [cykle planowania]')
+        ax.set_xlabel('Ładunek')
+        ax.set_title('Czas przewozu kolejnych ładunków dla r12, p8')
+
+        plt.figure(len(param_list)+first+1)
+        fig, ax = plt.subplots()
+        width = 0.6
+        x = np.arange(16) + 1
+        for i in range(len(bar_value[1])):
+            rects = ax.bar(x, bar_value[1][i], width)
+
+        # Add some text for labels, title and custom x-axis tick labels, etc.
+        ax.set_ylabel('Czas [cykle planowania]')
+        ax.set_xlabel('Ładunek')
+        ax.set_title('Czas przewozu kolejnych ładunków dla r12, p16')
 
         plt.show()
 

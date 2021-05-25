@@ -20,7 +20,7 @@ from testBot_robot import OrientationFromTag
 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-
+import matplotlib.colors as colors
 
 
 class PriorityQueue:
@@ -143,14 +143,17 @@ class Controller:
         self.csv_writer = csv.writer(self.file_log_csv, delimiter=';')
         self.csv_writer.writerow([len(self.bots), 'p'])
 
-        '''
+
         plt.ion()
         self.fig = plt.figure()
         plt.xticks(np.arange(0, 12, 1))
         plt.yticks(np.arange(0, 12, 1))
-        plt.grid(True)
+        self.DrawMaps()
+        #plt.get_current_fig_manager().window.showMaximized()
         plt.show()
-        '''
+        #plt.pause(1)
+        #plt.savefig('figure1.png')
+
 
         print("Start")
         rospy.sleep(1)
@@ -197,48 +200,11 @@ class Controller:
             print("Work finished !!!")
             exit(0)
 
-        '''
+
         if self.pathWasChange:
-            sumMap = []
-            k = 0
-            for i in self.robotPathMap:
-                sumMap.append([])
-                for j in i:
-                    if len(j) > 0:
-                        sumMap[k].append(sum(j))
-                    else:
-                        sumMap[k].append(math.inf)
-                k+=1
-            plt.clf()
-            ax1 = self.fig.add_subplot(221)
-            ax2 = self.fig.add_subplot(222)
-            ax3 = self.fig.add_subplot(223)
-            ax4 = self.fig.add_subplot(224)
-            self.fig.tight_layout(pad=3.0)
-            ax1.set_title("Path map")
-            ax2.set_title("Robot position map")
-            ax3.set_title("Cost map bot2")
-            ax4.set_title("Cost map bot3")
-            ax1.set_xticks(np.arange(0, 12, 1))
-            ax1.set_yticks(np.arange(0, 12, 1))
-            ax2.set_xticks(np.arange(0, 12, 1))
-            ax2.set_yticks(np.arange(0, 12, 1))
-            ax3.set_xticks(np.arange(0, 12, 1))
-            ax3.set_yticks(np.arange(0, 12, 1))
-            ax4.set_xticks(np.arange(0, 12, 1))
-            ax4.set_yticks(np.arange(0, 12, 1))
-            ax1.grid(True)
-            ax2.grid(True)
-            ax3.grid(True)
-            ax4.grid(True)
-            ax1.imshow(np.array(sumMap).transpose(), cmap=cm.RdYlGn, origin='upper', extent=[0, 11, 0, 11])
-            ax2.imshow(np.array(self.robotMap).transpose(), cmap=cm.RdYlGn, origin='upper', extent=[0, 11, 0, 11])
-            ax3.imshow(np.array(self.GenerateCostMapForRobot(2)).transpose(), cmap=cm.RdYlGn, origin='upper', extent=[0, 11, 0, 11])
-            ax4.imshow(np.array(self.GenerateCostMapForRobot(3)).transpose(), cmap=cm.RdYlGn, origin='upper',
-                       extent=[0, 11, 0, 11])
-            plt.pause(0.2)
+            self.DrawMaps()
             self.pathWasChange = False
-            '''
+
 
     def updateRobot(self, robotNumber):
         robotState = self.bots[robotNumber-1].robotState
@@ -1232,6 +1198,66 @@ class Controller:
         self.csv_writer.writerow(pack_delivered)
         for i in range(len(self.bots)):
             self.csv_writer.writerow(path[i])
+
+    def DrawMaps(self):
+        sumMap = []
+        k = 0
+        for i in self.robotPathMap:
+            sumMap.append([])
+            for j in i:
+                if len(j) > 0:
+                    sumMap[k].append(sum(j))
+                else:
+                    sumMap[k].append(math.inf)
+            k += 1
+
+        points = [[0, 3], [0, 8], [1, 3], [1, 8], [2, 3], [2, 8], [3, 0], [3, 11], [4, 0], [4, 5], [4, 7], [4, 11],
+                  [5, 0], [5, 3], [5, 7], [5, 11], [6, 0], [6, 4], [6, 8], [6, 11], [7, 0], [7, 4], [7, 6], [7, 11],
+                  [8, 0], [8, 11], [9, 3], [9, 8], [10, 3], [10, 8], [11, 3], [11, 8],
+                  [3, 0], [8, 0], [3, 1], [8, 1], [3, 2], [8, 2], [0, 3], [11, 3], [0, 4], [4, 4], [6, 4], [11, 4],
+                  [0, 5], [4, 5], [8, 5], [11, 5], [0, 6], [3, 6], [7, 6], [11, 6], [0, 7], [5, 7], [7, 7], [11, 7],
+                  [0, 8], [11, 8], [3, 9], [8, 9], [3, 10], [8, 10], [3, 11], [8, 11]]
+
+        plt.clf()
+        self.fig.tight_layout(pad=3.0)
+
+        ax1 = self.fig.add_subplot(221)
+        im1 = ax1.imshow(np.array(sumMap).transpose(), cmap=cm.RdYlGn, origin='upper', extent=[0, 12, 0, 12])
+        self.fig.colorbar(im1, orientation='vertical')
+
+        ax2 = self.fig.add_subplot(222)
+        im2 = ax2.imshow(np.array(self.robotMap).transpose(), cmap=cm.RdYlGn, origin='upper', extent=[0, 12, 0, 12], norm=colors.TwoSlopeNorm(vmin=-1, vcenter=1))
+        self.fig.colorbar(im2, orientation='vertical')
+
+        ax3 = self.fig.add_subplot(223)
+        im3 = ax3.imshow(np.array(self.GenerateCostMapForRobot(2)).transpose(), cmap=cm.RdYlGn, origin='upper', extent=[0, 12, 0, 12], norm=colors.TwoSlopeNorm(vmin=0, vcenter=2))
+        self.fig.colorbar(im3, orientation='vertical')
+
+        ax4 = self.fig.add_subplot(224)
+        im4 = ax4.imshow(np.array(self.GenerateCostMapForRobot(3)).transpose(), cmap=cm.RdYlGn, origin='upper', extent=[0, 12, 0, 12], norm=colors.TwoSlopeNorm(vmin=0, vcenter=2))
+        self.fig.colorbar(im4, orientation='vertical')
+
+        ax1.set_title("Path map")
+        ax2.set_title("Robot position map")
+        ax3.set_title("Cost map bot2")
+        ax4.set_title("Cost map bot3")
+
+        ax1.set_xticks(np.arange(0, 12, 1))
+        ax1.set_yticks(np.arange(0, 12, 1))
+        ax2.set_xticks(np.arange(0, 12, 1))
+        ax2.set_yticks(np.arange(0, 12, 1))
+        ax3.set_xticks(np.arange(0, 12, 1))
+        ax3.set_yticks(np.arange(0, 12, 1))
+        ax4.set_xticks(np.arange(0, 12, 1))
+        ax4.set_yticks(np.arange(0, 12, 1))
+
+        for i in range(0, len(points), 2):
+            ax1.plot([points[i][1] + 0.5, points[i + 1][1] + 0.5], [points[i][0] + 0.5, points[i + 1][0] + 0.5], 'b-', alpha=0.25)
+            ax2.plot([points[i][1] + 0.5, points[i + 1][1] + 0.5], [points[i][0] + 0.5, points[i + 1][0] + 0.5], 'b-', alpha=0.25)
+            ax3.plot([points[i][1] + 0.5, points[i + 1][1] + 0.5], [points[i][0] + 0.5, points[i + 1][0] + 0.5], 'b-', alpha=0.25)
+            ax4.plot([points[i][1] + 0.5, points[i + 1][1] + 0.5], [points[i][0] + 0.5, points[i + 1][0] + 0.5], 'b-', alpha=0.25)
+
+        plt.pause(0.2)
 
 def main():
     rospy.init_node('testBot_controller')

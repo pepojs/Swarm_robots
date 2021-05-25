@@ -105,6 +105,9 @@ class Controller:
         self.file_robots_name = file_robots
 
         self.planning_cycle_counter = 0
+        self.waitOnAllRobots = False
+        self.robotsPriority = []
+        self.botsMakeStep = []
 
         if file_robots == '':
             self.bots.append(RobotParameters('bot1', (3, 6), -math.pi/2, (3, 6), self.callbackRobotAnswerBot))
@@ -125,6 +128,11 @@ class Controller:
 
         else:
             self.readRobotsFromFile()
+
+        for i in range(len(self.bots)):
+            #self.robotsPriority.append(len(self.bots)-i)
+            self.robotsPriority.append(i+1)
+            self.botsMakeStep.append(False)
 
         self.SetEnterZonePositionMPC()
         self.SetPuckInZone()
@@ -235,7 +243,18 @@ class Controller:
     def mianLoop(self):
 
         for i in range(len(self.bots)):
+            self.botsMakeStep[i] = False
             self.updateRobot(i+1)
+
+        if self.waitOnAllRobots:
+            print('Wait on robot true')
+
+        while self.waitOnAllRobots:
+            self.waitOnAllRobots = False
+            for i in range(len(self.bots)):
+                if not self.botsMakeStep[i]:
+                    print('Update', i+1)
+                    self.updateRobot(i + 1)
 
         self.CalculationOnePathStep()
         self.DrawCostFunction()
@@ -305,6 +324,31 @@ class Controller:
             elif self.bots[robotNumber-1].robotPosition == self.bots[robotNumber-1].finishPosition:
                 self.botsFinished[robotNumber - 1] = True
 
+                self.mpc.reset_history()
+                x0 = list()
+                for i in range(len(self.bots)):
+                    conv_pos = self.ConvertOnRealCoordinates(self.bots[i].robotPosition[0], self.bots[i].robotPosition[1])
+                    x0.append(conv_pos[0])
+
+                for i in range(len(self.bots)):
+                    conv_pos = self.ConvertOnRealCoordinates(self.bots[i].robotPosition[0], self.bots[i].robotPosition[1])
+                    x0.append(conv_pos[1])
+
+                if self.modelType == 2:
+                    pass
+
+                else:
+                    for i in range(len(self.bots)):
+                        x0.append(self.bots[i].globalOrientation)
+
+                for i in range(len(self.bots)):
+                    x0.append(self.bots[i].pathLength)
+
+                x0 = np.array(x0).reshape(-1, 1)
+                self.mpc.x0 = x0
+                self.mpc.set_initial_guess()
+
+
             elif self.bots[robotNumber-1].robotPosition != self.bots[robotNumber-1].finishPosition:
                 self.bots[robotNumber - 1].aimPosition = self.bots[robotNumber-1].finishPosition
                 self.bots[robotNumber-1].robotState = RobotState.READY
@@ -333,8 +377,9 @@ class Controller:
                     self.bots[robotNumber - 1].newPathStep:
 
                 self.MakeOneStep(robotNumber)
-                self.bots[robotNumber - 1].canMakeNewStep = False
-                self.bots[robotNumber - 1].newPathStep = False
+                if self.botsMakeStep[robotNumber - 1]:
+                    self.bots[robotNumber - 1].canMakeNewStep = False
+                    self.bots[robotNumber - 1].newPathStep = False
 
             elif self.bots[robotNumber - 1].aimPosition == self.bots[robotNumber - 1].robotPosition:
 
@@ -771,12 +816,12 @@ class Controller:
         lterm = SX(0)
 
         for i in range(len(self.bots)):
-            mterm += w_mterm_dist * self.MyNorm2((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
+            mterm += self.robotsPriority[i] * w_mterm_dist * self.MyNorm2((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
             #mterm += w_mterm_dist*fabs(model.x['pos_x', i] - model.tvp['aim_x', i]) + w_mterm_dist*fabs(model.x['pos_y', i] - model.tvp['aim_y', i])
             #lterm += w_lterm_dist*fabs(model.x['pos_x', i] - model.tvp['aim_x', i]) \
             #          + w_lterm_dist*fabs(model.x['pos_y', i] - model.tvp['aim_y', i])
-            lterm += w_lterm_dist * self.MyNorm2((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
-            lterm += w_lterm_path*model.x['distance', i]
+            lterm += self.robotsPriority[i] * w_lterm_dist * self.MyNorm2((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
+            lterm += self.robotsPriority[i] * w_lterm_path*model.x['distance', i]
 
 
         for i in range(len(self.bots)):
@@ -785,8 +830,8 @@ class Controller:
                     continue
                 else:
                     pass
-                    lterm += w_lterm_avoid*self.SaturationFunction(fabs(model.x['pos_x', i] - model.x['pos_x', j]), 2)\
-                             + w_lterm_avoid*self.SaturationFunction(fabs(model.x['pos_y', i] - model.x['pos_y', j]), 2)
+                    lterm += self.robotsPriority[i] * w_lterm_avoid*self.SaturationFunction(fabs(model.x['pos_x', i] - model.x['pos_x', j]), 2)\
+                             + self.robotsPriority[i] * w_lterm_avoid*self.SaturationFunction(fabs(model.x['pos_y', i] - model.x['pos_y', j]), 2)
 
 
         #lterm /= (2*len(self.bots)*w_lterm_dist)+(2*(len(self.bots)-1)*len(self.bots)*w_lterm_avoid)
@@ -926,11 +971,11 @@ class Controller:
     def setupMPC2(self, model):
 
         setup_mpc = {
-            'n_horizon': 15,
+            'n_horizon': 12,
             't_step': 0.5,
             'n_robust': 0,
             'store_full_solution': True,
-            'nlpsol_opts': {'ipopt.max_iter': 1800, 'ipopt.print_level': 3, 'ipopt.linear_solver': 'ma27'}#, 'ipopt.tol': 10e-2, 'ipopt.print_level': 0, 'ipopt.sb': 'yes', 'print_time': 0}
+            'nlpsol_opts': {'ipopt.max_iter': 2600, 'ipopt.print_level': 3, 'ipopt.linear_solver': 'ma27'}#, 'ipopt.tol': 10e-2, 'ipopt.print_level': 0, 'ipopt.sb': 'yes', 'print_time': 0}
             # 'ipopt.max_iter':500 'calc_lam_p':False , 'ipopt.tol': 10e-15, 'ipopt.acceptable_iter': 1000
         }
 
@@ -938,9 +983,9 @@ class Controller:
         self.mpc.set_param(**setup_mpc)
         self.mpc.set_tvp_fun(self.tvp_fun1)
 
-        w_lterm_dist = 50 #55
-        w_lterm_path = 15 #19
-        w_lterm_avoid = 29 #15
+        w_lterm_dist = 55 #55
+        w_lterm_path = 22 #19
+        w_lterm_avoid = 24 #15
         w_mterm_dist = 80 #80
         w_mterm = 6
         w_lterm = 1
@@ -949,13 +994,13 @@ class Controller:
         lterm = SX(0)
 
         for i in range(len(self.bots)):
-            mterm += w_mterm_dist * self.MyNorm2((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
-            lterm += w_lterm_dist * self.MyNorm2((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
+            mterm += self.robotsPriority[i] * w_mterm_dist * self.MyNorm2((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
+            lterm += self.robotsPriority[i] * w_lterm_dist * self.MyNorm2((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
             #mterm += w_mterm_dist*fabs(model.x['pos_x', i] - model.tvp['aim_x', i]) + w_mterm_dist*fabs(model.x['pos_y', i] - model.tvp['aim_y', i])
             #lterm += w_lterm_dist*fabs(model.x['pos_x', i] - model.tvp['aim_x', i]) \
             #         + w_lterm_dist*fabs(model.x['pos_y', i] - model.tvp['aim_y', i])
 
-            lterm += w_lterm_path * model.x['distance', i]
+            lterm += self.robotsPriority[i] * w_lterm_path * model.x['distance', i]
 
         for i in range(len(self.bots)):
             for j in range(len(self.bots)):
@@ -963,8 +1008,8 @@ class Controller:
                     continue
                 else:
                     pass
-                    lterm += w_lterm_avoid*self.SaturationFunction(fabs(model.x['pos_x', i] - model.x['pos_x', j]), 2)\
-                             + w_lterm_avoid*self.SaturationFunction(fabs(model.x['pos_y', i] - model.x['pos_y', j]), 2)
+                    lterm += self.robotsPriority[i] * w_lterm_avoid*self.SaturationFunction(fabs(model.x['pos_x', i] - model.x['pos_x', j]), 2)\
+                             + self.robotsPriority[i] * w_lterm_avoid*self.SaturationFunction(fabs(model.x['pos_y', i] - model.x['pos_y', j]), 2)
                     #lterm += -15*sqrt((model.x['pos_x', i] - model.x['pos_x', j])**2 + (model.x['pos_y', i] - model.x['pos_y', j])**2)
 
 
@@ -1824,8 +1869,9 @@ class Controller:
 
         norma = norma + rozklad_pol_u * rozklad_pol_t * (wariant1_norma) + rozklad_pol_u * rozklad_pol_w * (wariant2_norma)
         
-        blokada_srodka = -self.SaturationFunctionGrid(pole_y, 250, 0.2, -10, 0)
-        norma += blokada_srodka
+        #blokada_srodka = -self.SaturationFunctionGrid(pole_y, 250, 0.2, -1, 0)*18
+        blokada_srodka = floor(-self.SaturationFunctionGrid(pole_y, 250, 0.1, -1.99, 0))+floor(-self.SaturationFunctionGrid(pole_x, 250, 0.1, -1.99, 0))
+        norma += blokada_srodka*18
         
         return norma
 
@@ -2114,6 +2160,44 @@ class Controller:
 
         return [north, west, south, east]
 
+    def GetNeighborsValue(self, position):
+        x, y = position
+        result = [(x, y + 1), (x + 1, y), (x, y - 1), (x - 1, y)]  # N W S E
+
+        if x == 0:
+            result.remove((x - 1, y))
+        elif x == 11:
+            result.remove((x + 1, y))
+
+        if y == 0:
+            result.remove((x, y - 1))
+        elif y == 11:
+            result.remove((x, y + 1))
+
+        north = -2
+        east = -2
+        south = -2
+        west = -2
+
+        for i in result:
+            if i[1] > y:
+                north = self.robotMap[i[0]][i[1]]
+                continue
+
+            if i[0] > x:
+                west = self.robotMap[i[0]][i[1]]
+                continue
+
+            if i[1] < y:
+                south = self.robotMap[i[0]][i[1]]
+                continue
+
+            if i[0] < x:
+                east = self.robotMap[i[0]][i[1]]
+                continue
+
+        return [north, west, south, east]
+
     def CalculationOnePathStep(self):
 
         tempReadyBots = 0
@@ -2249,7 +2333,7 @@ class Controller:
     def MakeOneStep(self, robotNumber):
         robotState = self.bots[robotNumber - 1].robotState
         if robotState == RobotState.READY:
-
+            self.botsMakeStep[robotNumber - 1] = True
             self.bots[robotNumber - 1].robotState = RobotState.FORWARD
 
 
@@ -2280,12 +2364,13 @@ class Controller:
             pre_pos = []
             for i in range(len(pre_x[robotNumber - 1])):
                 pre_pos.append((pre_x[robotNumber - 1][i][0], pre_y[robotNumber - 1][i][0]))
-                print('Robot: {}, prediction {}: {}, fg: {:.5}'.format(robotNumber, i, pre_pos[i], self.functionGrid2(pre_pos[i][0], pre_pos[i][1])))
-                print('Norm2: {:.5}'.format(self.MyNorm2((current_x, current_y), (pre_pos[i][0], pre_pos[i][1]))))
+                #print('Robot: {}, prediction {}: {}, fg: {:.5}'.format(robotNumber, i, pre_pos[i], self.functionGrid2(pre_pos[i][0], pre_pos[i][1])))
+                #print('Norm2: {:.5}'.format(self.MyNorm2((current_x, current_y), (pre_pos[i][0], pre_pos[i][1]))))
 
 
             neighbors = self.GetNeighborsFlagsForm(self.bots[robotNumber - 1].robotPosition)
             neighbors_dist = self.GetNeighborsDistatnceWithoutRobots(self.bots[robotNumber - 1].robotPosition)
+            neighbors_value = self.GetNeighborsValue(self.bots[robotNumber - 1].robotPosition)
 
             pre_pos[1] = (x[0], y[0])
             self.bots[robotNumber - 1].nextStep = self.bots[robotNumber - 1].robotPosition
@@ -2322,6 +2407,19 @@ class Controller:
                                 self.bots[robotNumber - 1].nextStep[0], self.bots[robotNumber - 1].nextStep[1] - 1)
                                 break
                             else:
+                                print('neighbors_value 2: ', neighbors_value[2])
+                                print('Robot {}, next step: {}, steps {}'.format(neighbors_value[2], self.bots[neighbors_value[2] - 1].nextStep, self.botsMakeStep[neighbors_value[2] - 1]))
+
+                                if neighbors_value[2] > 0 and not self.botsFinished[neighbors_value[2] - 1]:
+                                    if self.bots[neighbors_value[2] - 1].nextStep != (
+                                            self.bots[robotNumber - 1].nextStep[0],
+                                            self.bots[robotNumber - 1].nextStep[1] - 1) or \
+                                            not self.botsMakeStep[neighbors_value[2] - 1]:
+                                        self.waitOnAllRobots = True
+                                        self.botsMakeStep[robotNumber - 1] = False
+                                        self.bots[robotNumber - 1].robotState = RobotState.READY
+                                        return
+                                pre_length = i
                                 break
 
                     else:
@@ -2338,6 +2436,20 @@ class Controller:
                                 self.bots[robotNumber - 1].nextStep[0], self.bots[robotNumber - 1].nextStep[1] + 1)
                                 break
                             else:
+                                print('neighbors_value 0: ', neighbors_value[0])
+                                print('Robot {}, next step: {}'.format(neighbors_value[0],
+                                                                       self.bots[neighbors_value[0] - 1].nextStep))
+
+                                if neighbors_value[0] > 0 and not self.botsFinished[neighbors_value[0] - 1]:
+                                    if self.bots[neighbors_value[0] - 1].nextStep != (
+                                            self.bots[robotNumber - 1].nextStep[0],
+                                            self.bots[robotNumber - 1].nextStep[1] + 1) or \
+                                            not self.botsMakeStep[neighbors_value[0] - 1]:
+                                        self.waitOnAllRobots = True
+                                        self.botsMakeStep[robotNumber - 1] = False
+                                        self.bots[robotNumber - 1].robotState = RobotState.READY
+                                        return
+                                pre_length = i
                                 break
                 else:
                     if temp_y > current_y:
@@ -2354,6 +2466,20 @@ class Controller:
                                 self.bots[robotNumber - 1].nextStep[0] - 1, self.bots[robotNumber - 1].nextStep[1])
                                 break
                             else:
+                                print('neighbors_value 3: ', neighbors_value[3])
+                                print('Robot {}, next step: {}'.format(neighbors_value[3],
+                                                                       self.bots[neighbors_value[3] - 1].nextStep))
+
+                                if neighbors_value[3] > 0 and not self.botsFinished[neighbors_value[3] - 1]:
+                                    if self.bots[neighbors_value[3] - 1].nextStep != (
+                                            self.bots[robotNumber - 1].nextStep[0] - 1,
+                                            self.bots[robotNumber - 1].nextStep[1]) or \
+                                            not self.botsMakeStep[neighbors_value[3] - 1]:
+                                        self.waitOnAllRobots = True
+                                        self.botsMakeStep[robotNumber - 1] = False
+                                        self.bots[robotNumber - 1].robotState = RobotState.READY
+                                        return
+                                pre_length = i
                                 break
                     else:
 
@@ -2369,6 +2495,20 @@ class Controller:
                                 self.bots[robotNumber - 1].nextStep[0] + 1, self.bots[robotNumber - 1].nextStep[1])
                                 break
                             else:
+                                print('neighbors_value 1: ', neighbors_value[1])
+                                print('Robot {}, next step: {}'.format(neighbors_value[1],
+                                                                       self.bots[neighbors_value[1] - 1].nextStep))
+
+                                if neighbors_value[1] > 0 and not self.botsFinished[neighbors_value[1] - 1]:
+                                    if self.bots[neighbors_value[1] - 1].nextStep != (
+                                            self.bots[robotNumber - 1].nextStep[0] + 1,
+                                            self.bots[robotNumber - 1].nextStep[1]) or \
+                                            not self.botsMakeStep[neighbors_value[1] - 1]:
+                                        self.waitOnAllRobots = True
+                                        self.botsMakeStep[robotNumber - 1] = False
+                                        self.bots[robotNumber - 1].robotState = RobotState.READY
+                                        return
+                                pre_length = i
                                 break
 
 
@@ -2393,6 +2533,20 @@ class Controller:
                                         self.bots[robotNumber - 1].nextStep[1] - 1)
                                     break
                                 else:
+                                    print('neighbors_value 2: ', neighbors_value[2])
+                                    print('Robot {}, next step: {}'.format(neighbors_value[2],
+                                                                           self.bots[neighbors_value[2] - 1].nextStep))
+                                    '''
+                                    if neighbors_value[2] > 0 and not self.botsFinished[neighbors_value[2] - 1]:
+                                        if self.bots[neighbors_value[2] - 1].nextStep != (
+                                                self.bots[robotNumber - 1].nextStep[0],
+                                                self.bots[robotNumber - 1].nextStep[1] - 1) or \
+                                                not self.botsMakeStep[neighbors_value[2] - 1]:
+                                            self.waitOnAllRobots = True
+                                            self.botsMakeStep[robotNumber - 1] = False
+                                            self.bots[robotNumber - 1].robotState = RobotState.READY
+                                            return
+                                    '''
                                     break
 
                         else:
@@ -2408,6 +2562,20 @@ class Controller:
                                         self.bots[robotNumber - 1].nextStep[1] + 1)
                                     break
                                 else:
+                                    print('neighbors_value 0: ', neighbors_value[0])
+                                    print('Robot {}, next step: {}'.format(neighbors_value[0],
+                                                                           self.bots[neighbors_value[0] - 1].nextStep))
+                                    '''
+                                    if neighbors_value[0] > 0 and not self.botsFinished[neighbors_value[0] - 1]:
+                                        if self.bots[neighbors_value[0] - 1].nextStep != (
+                                                self.bots[robotNumber - 1].nextStep[0],
+                                                self.bots[robotNumber - 1].nextStep[1] + 1) or \
+                                                not self.botsMakeStep[neighbors_value[0] - 1]:
+                                            self.waitOnAllRobots = True
+                                            self.botsMakeStep[robotNumber - 1] = False
+                                            self.bots[robotNumber - 1].robotState = RobotState.READY
+                                            return
+                                    '''
                                     break
                     else:
                         if temp_y > current_y:
@@ -2423,6 +2591,20 @@ class Controller:
                                         self.bots[robotNumber - 1].nextStep[1])
                                     break
                                 else:
+                                    print('neighbors_value 3: ', neighbors_value[3])
+                                    print('Robot {}, next step: {}'.format(neighbors_value[3],
+                                                                           self.bots[neighbors_value[3] - 1].nextStep))
+                                    '''
+                                    if neighbors_value[3] > 0 and not self.botsFinished[neighbors_value[3] - 1]:
+                                        if self.bots[neighbors_value[3] - 1].nextStep != (
+                                                self.bots[robotNumber - 1].nextStep[0] - 1,
+                                                self.bots[robotNumber - 1].nextStep[1]) or \
+                                                not self.botsMakeStep[neighbors_value[3] - 1]:
+                                            self.waitOnAllRobots = True
+                                            self.botsMakeStep[robotNumber - 1] = False
+                                            self.bots[robotNumber - 1].robotState = RobotState.READY
+                                            return
+                                    '''
                                     break
                         else:
 
@@ -2437,6 +2619,20 @@ class Controller:
                                         self.bots[robotNumber - 1].nextStep[1])
                                     break
                                 else:
+                                    print('neighbors_value 1: ', neighbors_value[1])
+                                    print('Robot {}, next step: {}'.format(neighbors_value[1],
+                                                                           self.bots[neighbors_value[1] - 1].nextStep))
+                                    '''
+                                    if neighbors_value[1] > 0 and not self.botsFinished[neighbors_value[1] - 1]:
+                                        if self.bots[neighbors_value[1] - 1].nextStep != (
+                                                self.bots[robotNumber - 1].nextStep[0] + 1,
+                                                self.bots[robotNumber - 1].nextStep[1]) or \
+                                                not self.botsMakeStep[neighbors_value[1] - 1]:
+                                            self.waitOnAllRobots = True
+                                            self.botsMakeStep[robotNumber - 1] = False
+                                            self.bots[robotNumber - 1].robotState = RobotState.READY
+                                            return
+                                    '''
                                     break
 
             if self.bots[robotNumber - 1].nextStep == self.bots[robotNumber - 1].robotPosition:
@@ -2447,7 +2643,26 @@ class Controller:
 
             if self.bots[robotNumber - 1].stopCounter >= random.randint(3, 6):
                 neighbors = self.GetNeighbors(self.bots[robotNumber - 1].robotPosition)
-                self.bots[robotNumber - 1].nextStep = neighbors[random.randint(0, len(neighbors)-1)]
+                '''
+                if len(neighbors) > 0:
+                    min_dist = np.inf
+                    min_nei = 0
+                    conv_aim = self.ConvertOnRealCoordinates(self.bots[robotNumber - 1].aimPosition[0],
+                                                        self.bots[robotNumber - 1].aimPosition[1])
+
+                    for i in range(len(neighbors)):
+                        conv_nei = self.ConvertOnRealCoordinates(neighbors[i][0], neighbors[i][1])
+                        dist = self.MyNorm2(conv_nei, conv_aim)
+                        if min_dist > dist:
+                            min_dist = dist
+                            min_nei = i
+
+                    self.bots[robotNumber - 1].nextStep = neighbors[min_nei]
+
+                '''
+                if len(neighbors) > 0:
+                    self.bots[robotNumber - 1].nextStep = neighbors[random.randint(0, len(neighbors)-1)]
+                
 
             '''
             neighbors_weight = [0]*len(neighbors)
@@ -2647,6 +2862,7 @@ class Controller:
             print('Neighbors: ', neighbors)
             print('Robot{} pos: {}'.format(robotNumber, self.bots[robotNumber - 1].nextStep))
             print('Path distance: {}'.format(self.bots[robotNumber-1].pathLength))
+            print('waitOnAllRobots: ', self.waitOnAllRobots)
 
             conv_pos = self.ConvertOnRealCoordinates(self.bots[robotNumber - 1].nextStep[0],
                                                     self.bots[robotNumber - 1].nextStep[1])
@@ -2721,27 +2937,37 @@ class Controller:
 
 
 
-        def funkcja(x, bot):
-            w_lterm_dist = 80
+        def funkcjaNorma2(x, bot):
+            value = 0
+
+            w_lterm_dist = 55
+            w_mterm_dist = 80
+            w_path_dist = 15
+            w_avoid = 19
 
             mterm = 0
             lterm = 0
 
-
             aim_conv = self.ConvertOnRealCoordinates(self.bots[bot].aimPosition[0], self.bots[bot].aimPosition[1])
-            lterm += (w_lterm_dist * abs(x[0] - aim_conv[0]) + w_lterm_dist *abs(x[1] - aim_conv[1])) / (2*w_lterm_dist)
-            #lterm += self.Norm2(x, aim_conv)
+            pos_conv = self.ConvertOnRealCoordinates(self.bots[bot].robotPosition[0], self.bots[bot].robotPosition[1])
 
+            mterm += w_mterm_dist * self.MyNorm2(x, (aim_conv[0], aim_conv[1]))
+            lterm += w_lterm_dist * self.MyNorm2(x, (aim_conv[0], aim_conv[1]))
+            lterm += w_path_dist * self.MyNorm2(x, pos_conv)
+
+            '''
             for i in range(len(self.bots)):
-                if i != bot:
-                    aim_conv = self.ConvertOnRealCoordinates(self.bots[i].aimPosition[0], self.bots[i].aimPosition[1])
-                    pos_conv = self.ConvertOnRealCoordinates(self.bots[i].aimPosition[0], self.bots[i].aimPosition[1])
-                    lterm += w_lterm_dist * self.MyNorm((pos_conv[0],pos_conv[1]), (aim_conv[0], aim_conv[1]))
-                        #        / (2 * w_lterm_dist)
-                    #lterm += (w_lterm_dist * abs(pos_conv[0] - aim_conv[0]) + w_lterm_dist * abs(pos_conv[1] - aim_conv[1]))\
-                    #        / (2 * w_lterm_dist)
-                    #lterm += self.Norm2(pos_conv, aim_conv)
+                aim_conv = self.ConvertOnRealCoordinates(self.bots[i].aimPosition[0], self.bots[i].aimPosition[1])
+                pos_conv = self.ConvertOnRealCoordinates(self.bots[i].robotPosition[0], self.bots[i].robotPosition[1])
+                lterm += w_lterm_dist * self.MyNorm2((pos_conv[0],pos_conv[1]),
+                                                     (aim_conv[0], aim_conv[1]))
 
+                mterm += w_mterm_dist * self.MyNorm2((pos_conv[0],pos_conv[1]),
+                                                     (aim_conv[0], aim_conv[1]))
+
+                lterm += w_lterm_path * self.bots[i].pathLength
+            '''
+            '''
             for i in range(len(self.bots)):
                 for j in range(len(self.bots)):
                     if i == j:
@@ -2754,9 +2980,10 @@ class Controller:
 
             #lterm /= setup_mpc['n_horizon']
             lterm *= 30
+            '''
             return lterm
 
-        Z = funkcja([X, Y], 0)
+        Z = funkcjaNorma2([X, Y], 0)
         min_fun = np.min(Z)
         max_fun = np.max(Z)
         ilosc_podzialow = 30

@@ -62,66 +62,65 @@
         by 'launch_demo.sh').
     --> <!-- -0.525,-0.3 ; -1.875,2.7; -2.4,1.875; -0.3,0.525,0-->
     <foot-bot id="bot1">
-          <body position="-0.3,1.2,0" orientation="-90,0,0"/>
+          <body position="-0.3,2.7,0" orientation="-90,0,0"/>
           <controller config="argos_ros_bot_lit"/>
     </foot-bot>
     
     <foot-bot id="bot2">
-          <body position="1.2,0.3,0" orientation="-180,0,0"/>
+          <body position="2.85,0.3,0" orientation="-180,0,0"/>
           <controller config="argos_ros_bot_lit"/>
     </foot-bot>
     
     <foot-bot id="bot3">
-          <body position="0.3,-1.2,0" orientation="-270,0,0"/>
+          <body position="0.3,-2.7,0" orientation="-270,0,0"/>
           <controller config="argos_ros_bot_lit"/>
     </foot-bot>
 
     <foot-bot id="bot4">
-          <body position="-1.2,-0.3,0" orientation="0,0,0"/>
-          <controller config="argos_ros_bot_lit"/>
-    </foot-bot>
-    <!--
-    <foot-bot id="bot5">
-          <body position="0.75,1.8,0" orientation="-90,0,0"/>
-          <controller config="argos_ros_bot_lit"/>
-    </foot-bot>
-    -->
-    <foot-bot id="bot5">
-          <body position="1.8,0.75,0" orientation="-180,0,0"/>
+          <body position="-2.85,-0.3,0" orientation="0,0,0"/>
           <controller config="argos_ros_bot_lit"/>
     </foot-bot>
     
+    <foot-bot id="bot5">
+          <body position="0.75,2.7,0" orientation="-90,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+
     <foot-bot id="bot6">
-          <body position="-0.75,-1.8,0" orientation="-270,0,0"/>
+          <body position="2.85,-0.75,0" orientation="-180,0,0"/>
           <controller config="argos_ros_bot_lit"/>
     </foot-bot>
-    <!--
+
+    <foot-bot id="bot7">
+          <body position="-0.75,-2.7,0" orientation="-270,0,0"/>
+          <controller config="argos_ros_bot_lit"/>
+    </foot-bot>
+
     <foot-bot id="bot8">
-          <body position="-1.8,0.75,0" orientation="0,0,0"/>
+          <body position="-2.85,0.75,0" orientation="0,0,0"/>
           <controller config="argos_ros_bot_lit"/>
     </foot-bot>
-    -->
-    <!--
+    
     <foot-bot id="bot9">
-          <body position="-0.75,2.7,0" orientation="-90,0,0"/>
+          <body position="0.3,2.7,0" orientation="-90,0,0"/>
           <controller config="argos_ros_bot_lit"/>
     </foot-bot>
 
     <foot-bot id="bot10">
-          <body position="2.85,0.75,0" orientation="-180,0,0"/>
+          <body position="2.85,-0.3,0" orientation="-180,0,0"/>
           <controller config="argos_ros_bot_lit"/>
     </foot-bot>
 
     <foot-bot id="bot11">
-          <body position="0.75,-2.7,0" orientation="-270,0,0"/>
+          <body position="-0.3,-2.7,0" orientation="-270,0,0"/>
           <controller config="argos_ros_bot_lit"/>
     </foot-bot>
 
     <foot-bot id="bot12">
-          <body position="-2.85,-0.75,0" orientation="0,0,0"/>
+          <body position="-2.85,0.3,0" orientation="0,0,0"/>
           <controller config="argos_ros_bot_lit"/>
     </foot-bot> 
-
+    <!--
     <foot-bot id="bot13">
           <body position="0.75,2.7,0" orientation="-90,0,0"/>
           <controller config="argos_ros_bot_lit"/>
