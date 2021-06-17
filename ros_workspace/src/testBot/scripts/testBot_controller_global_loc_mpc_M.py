@@ -102,12 +102,16 @@ class Controller:
 
         self.bots = []
         self.botsFinished = []
+        self.obstacles = []
+        self.finishTime = False
         self.file_robots_name = file_robots
 
         self.planning_cycle_counter = 0
         self.waitOnAllRobots = False
         self.robotsPriority = []
         self.botsMakeStep = []
+        self.waitingBots = dict()
+        self.resetTime = 10
 
         if file_robots == '':
             self.bots.append(RobotParameters('bot1', (3, 6), -math.pi/2, (3, 6), self.callbackRobotAnswerBot))
@@ -241,6 +245,9 @@ class Controller:
                 self.botsFinished.append(False)
 
     def mianLoop(self):
+        self.waitingBots = dict()
+        for i in range(len(self.bots)):
+            self.waitingBots[i + 1] = []
 
         for i in range(len(self.bots)):
             self.botsMakeStep[i] = False
@@ -253,10 +260,10 @@ class Controller:
             self.waitOnAllRobots = False
             for i in range(len(self.bots)):
                 if not self.botsMakeStep[i]:
-                    print('Update', i+1)
+                    #print('Update', i+1)
                     self.updateRobot(i + 1)
+            rospy.sleep(0.01)
 
-        self.CalculationOnePathStep()
         self.DrawCostFunction()
 
         finished = True
@@ -270,6 +277,28 @@ class Controller:
             self.file_log_csv.write('#finish')
             print("Work finished !!!")
             exit(0)
+
+        if self.planning_cycle_counter % self.resetTime == 0:
+            if not self.finishTime:
+                if self.modelType == 2:
+                    model = self.robotKinematicModel2()
+                    self.setupMPC2(model)
+                else:
+                    model = self.robotKinematicModel()
+                    self.setupMPC(model)
+            else:
+                for i in range(len(self.bots)):
+                    if self.bots[i].pathLength >= 5.0:
+                        self.bots[i].pathLength = 0
+
+                if self.modelType == 2:
+                    model = self.robotKinematicModel2_finishTime()
+                    self.setupMPC2_finishTime(model)
+                else:
+                    model = self.robotKinematicModel_finishTime()
+                    self.setupMPC_finishTime(model)
+
+        self.CalculationOnePathStep()
 
         '''
         if self.pathWasChange:
@@ -322,31 +351,21 @@ class Controller:
                 return
 
             elif self.bots[robotNumber-1].robotPosition == self.bots[robotNumber-1].finishPosition:
+                self.finishTime = True
                 self.botsFinished[robotNumber - 1] = True
+                conv = self.ConvertOnRealCoordinates(self.bots[robotNumber - 1].robotPosition[0], self.bots[robotNumber - 1].robotPosition[1])
+                self.obstacles.append(conv)
+                self.resetTime = 5
 
-                self.mpc.reset_history()
-                x0 = list()
-                for i in range(len(self.bots)):
-                    conv_pos = self.ConvertOnRealCoordinates(self.bots[i].robotPosition[0], self.bots[i].robotPosition[1])
-                    x0.append(conv_pos[0])
-
-                for i in range(len(self.bots)):
-                    conv_pos = self.ConvertOnRealCoordinates(self.bots[i].robotPosition[0], self.bots[i].robotPosition[1])
-                    x0.append(conv_pos[1])
+                if all(self.botsFinished):
+                    return
 
                 if self.modelType == 2:
-                    pass
-
+                    model = self.robotKinematicModel2_finishTime()
+                    self.setupMPC2_finishTime(model)
                 else:
-                    for i in range(len(self.bots)):
-                        x0.append(self.bots[i].globalOrientation)
-
-                for i in range(len(self.bots)):
-                    x0.append(self.bots[i].pathLength)
-
-                x0 = np.array(x0).reshape(-1, 1)
-                self.mpc.x0 = x0
-                self.mpc.set_initial_guess()
+                    model = self.robotKinematicModel_finishTime()
+                    self.setupMPC_finishTime(model)
 
 
             elif self.bots[robotNumber-1].robotPosition != self.bots[robotNumber-1].finishPosition:
@@ -635,6 +654,27 @@ class Controller:
 
         return temp
 
+    def tvp_fun1_finishTime(self, t_now):
+        working_robots = 0
+        for i in self.botsFinished:
+            if not i:
+                working_robots += 1
+
+        temp = self.mpc.get_tvp_template()
+        temp_list_x = list()
+        temp_list_y = list()
+
+        for i in range(len(self.botsFinished)):
+            if not self.botsFinished[i]:
+                aim_conv = self.ConvertOnRealCoordinates(self.bots[i].aimPosition[0], self.bots[i].aimPosition[1])
+                temp_list_x.append(aim_conv[0])
+                temp_list_y.append(aim_conv[1])
+
+        temp['_tvp', :, 'aim_x'] = np.array(temp_list_x)
+        temp['_tvp', :, 'aim_y'] = np.array(temp_list_y)
+
+        return temp
+
     def dist_to_line(self, x, y, A, B, C):
         return fabs(A * x + B * y + C) / (sqrt(A ** 2 + B ** 2))
 
@@ -732,9 +772,24 @@ class Controller:
 
         return temp_min
 
+    def functionAvoid_new(self, x, y, currentBot, length):
+        scale = 100
+        shift = 0.16
+        if length == 1:
+            return SX(1)
+        else:
+            temp = 1
+            for i in range(length):
+                if i == currentBot:
+                    continue
+                else:
+                    temp *= floor(self.SaturationFunctionGrid(self.Norm2((x[currentBot], y[currentBot]), (x[i], y[i])), scale, shift, 0, 1.99))
+
+        return temp
+
     def functionAvoid(self, x, y, currentBot, length):
         if length == 1:
-            return SX(0)
+            return SX(1)
         else:
             temp = np.inf
             for i in range(length):
@@ -744,6 +799,86 @@ class Controller:
                     temp = fmin(temp, self.Norm2((x[currentBot], y[currentBot]), (x[i], y[i])))
 
         return temp
+
+    def functionAvoid_finishTime(self, x, y, obstacles):
+        if len(obstacles) < 1:
+            return SX(1)
+        else:
+            temp = np.inf
+            for obstacle in obstacles:
+                temp = fmin(temp, self.Norm2((x, y), obstacle))
+
+        return temp
+
+    def functionAvoid_finishTime_new (self, x, y, obstacles):
+        scale = 80
+        shift = 0.16
+        if len(obstacles) < 1:
+            return SX(1)
+        else:
+            temp = 1
+            for obstacle in obstacles:
+                temp *= self.SaturationFunctionGrid(self.Norm2((x, y), obstacle), scale, shift, 0, 1)
+
+        return temp
+
+    def MPC_calculate_x0(self):
+        x0 = list()
+        for i in range(len(self.bots)):
+            conv_pos = self.ConvertOnRealCoordinates(self.bots[i].robotPosition[0], self.bots[i].robotPosition[1])
+            x0.append(conv_pos[0])
+
+        for i in range(len(self.bots)):
+            conv_pos = self.ConvertOnRealCoordinates(self.bots[i].robotPosition[0], self.bots[i].robotPosition[1])
+            x0.append(conv_pos[1])
+
+        if self.modelType == 2:
+            pass
+
+        else:
+            for i in range(len(self.bots)):
+                x0.append(self.bots[i].globalOrientation)
+
+        for i in range(len(self.bots)):
+            x0.append(self.bots[i].pathLength)
+
+        x0 = np.array(x0).reshape(-1, 1)
+        return x0
+
+    def MPC_calculate_x0_finishTime(self):
+        working_robots = 0
+        for i in self.botsFinished:
+            if not i:
+                working_robots += 1
+
+        x0 = list()
+        for i in range(len(self.botsFinished)):
+            if not self.botsFinished[i]:
+                conv_pos = self.ConvertOnRealCoordinates(self.bots[i].robotPosition[0],
+                                                         self.bots[i].robotPosition[1])
+                x0.append(conv_pos[0])
+
+        for i in range(len(self.botsFinished)):
+            if not self.botsFinished[i]:
+                conv_pos = self.ConvertOnRealCoordinates(self.bots[i].robotPosition[0],
+                                                         self.bots[i].robotPosition[1])
+                x0.append(conv_pos[1])
+
+        if self.modelType == 2:
+            pass
+
+        else:
+            for i in range(len(self.botsFinished)):
+                if not self.botsFinished[i]:
+                    x0.append(self.bots[i].globalOrientation)
+
+        for i in range(len(self.botsFinished)):
+            if not self.botsFinished[i]:
+                x0.append(self.bots[i].pathLength)
+
+        x0 = np.array(x0).reshape(-1, 1)
+
+        return x0
 
     def robotKinematicModel(self):
         model_type = 'continuous'
@@ -911,22 +1046,7 @@ class Controller:
 
         self.mpc.setup()
 
-        x0 = list()
-        for i in range(len(self.bots)):
-            conv_pos = self.ConvertOnRealCoordinates(self.bots[i].robotPosition[0], self.bots[i].robotPosition[1])
-            x0.append(conv_pos[0])
-
-        for i in range(len(self.bots)):
-            conv_pos = self.ConvertOnRealCoordinates(self.bots[i].robotPosition[0], self.bots[i].robotPosition[1])
-            x0.append(conv_pos[1])
-
-        for i in range(len(self.bots)):
-            x0.append(self.bots[i].globalOrientation)
-
-        for i in range(len(self.bots)):
-            x0.append(self.bots[i].pathLength)
-
-        x0 = np.array(x0).reshape(-1, 1)
+        x0 = self.MPC_calculate_x0()
         self.mpc.x0 = x0
         self.mpc.set_initial_guess()
 
@@ -983,9 +1103,9 @@ class Controller:
         self.mpc.set_param(**setup_mpc)
         self.mpc.set_tvp_fun(self.tvp_fun1)
 
-        w_lterm_dist = 55 #55
+        w_lterm_dist = 60 #55
         w_lterm_path = 22 #19
-        w_lterm_avoid = 24 #15
+        w_lterm_avoid = 26 #15
         w_mterm_dist = 80 #80
         w_mterm = 6
         w_lterm = 1
@@ -1010,6 +1130,7 @@ class Controller:
                     pass
                     lterm += self.robotsPriority[i] * w_lterm_avoid*self.SaturationFunction(fabs(model.x['pos_x', i] - model.x['pos_x', j]), 2)\
                              + self.robotsPriority[i] * w_lterm_avoid*self.SaturationFunction(fabs(model.x['pos_y', i] - model.x['pos_y', j]), 2)
+
                     #lterm += -15*sqrt((model.x['pos_x', i] - model.x['pos_x', j])**2 + (model.x['pos_y', i] - model.x['pos_y', j])**2)
 
 
@@ -1075,26 +1196,389 @@ class Controller:
 
         nl_cons_value_avoid = list()
         for i in range(len(self.bots)):
-            nl_cons_value_avoid.append([-0.41])
+            nl_cons_value_avoid.append([-0.41]) #-0.41
 
         self.mpc.set_nl_cons('grid_shape', model.aux['grid'], np.array(nl_cons_value_grid))
         self.mpc.set_nl_cons('avoid_robots', -model.aux['avoid'], np.array(nl_cons_value_avoid))
 
         self.mpc.setup()
 
-        x0 = list()
-        for i in range(len(self.bots)):
-            conv_pos = self.ConvertOnRealCoordinates(self.bots[i].robotPosition[0], self.bots[i].robotPosition[1])
-            x0.append(conv_pos[0])
+        x0 = self.MPC_calculate_x0()
+        self.mpc.x0 = x0
+        self.mpc.set_initial_guess()
 
-        for i in range(len(self.bots)):
-            conv_pos = self.ConvertOnRealCoordinates(self.bots[i].robotPosition[0], self.bots[i].robotPosition[1])
-            x0.append(conv_pos[1])
+    def robotKinematicModel_finishTime(self):
+        working_robots = 0
+        for i in self.botsFinished:
+            if not i:
+                working_robots += 1
 
-        for i in range(len(self.bots)):
-            x0.append(self.bots[i].pathLength)
+        model_type = 'continuous'
+        model = do_mpc.model.Model(model_type)
+        pos_x = model.set_variable('_x', 'pos_x', shape=(working_robots, 1))
+        pos_y = model.set_variable('_x', 'pos_y', shape=(working_robots, 1))
+        theta = model.set_variable('_x', 'theta', shape=(working_robots, 1))
+        distance = model.set_variable('_x', 'distance', shape=(working_robots, 1))
 
-        x0 = np.array(x0).reshape(-1, 1)
+        v = model.set_variable('_u', 'v', shape=(working_robots, 1))
+        omega = model.set_variable('_u', 'omega', shape=(working_robots, 1))
+
+        aim_x = model.set_variable('_tvp', 'aim_x', shape=(working_robots, 1))
+        aim_y = model.set_variable('_tvp', 'aim_y', shape=(working_robots, 1))
+
+        # model.set_rhs('pos_x', v * cos(omega))
+        # model.set_rhs('pos_y', v * sin(omega))
+        dpos_x = list()
+        dpos_y = list()
+        dtheta = list()
+        ddistance = list()
+        nl_cons_grid = list()
+        nl_cons_avoid = list()
+        #nl_cons_avoid_obstacles = list()
+
+        for i in range(working_robots):
+            dpos_x.append(v[i]*cos(theta[i]))
+            dpos_y.append(v[i]*sin(theta[i]))
+            dtheta.append(omega[i])
+            ddistance.append(v[i])
+
+            nl_cons_grid.append(self.functionGrid2(pos_x[i], pos_y[i]))
+            nl_cons_avoid.append(self.functionAvoid(pos_x, pos_y, i, working_robots))
+            #nl_cons_avoid_obstacles.append(self.functionAvoid_finishTime(pos_x[i], pos_y[i], self.obstacles))
+
+        model.set_rhs('pos_x', vertcat(*dpos_x))
+        model.set_rhs('pos_y', vertcat(*dpos_y))
+        model.set_rhs('theta', vertcat(*dtheta))
+        model.set_rhs('distance', vertcat(*ddistance))
+
+        model.set_expression('grid', vertcat(*nl_cons_grid))
+        model.set_expression('avoid', vertcat(*nl_cons_avoid))
+        #model.set_expression('avoid_obstacles', vertcat(*nl_cons_avoid_obstacles))
+
+        model.setup()
+
+        return model
+
+    def setupMPC_finishTime(self, model):
+        working_robots = 0
+        for i in self.botsFinished:
+            if not i:
+                working_robots += 1
+
+        setup_mpc = {
+            'n_horizon': 15,
+            't_step': 0.5,
+            'n_robust': 0,
+            'store_full_solution': True,
+            'nlpsol_opts': {'ipopt.max_iter': 1500, 'ipopt.print_level': 3, 'ipopt.linear_solver': 'ma27'}#, 'ipopt.tol': 10e-2, 'ipopt.print_level': 0, 'ipopt.sb': 'yes', 'print_time': 0}
+            # 'ipopt.max_iter':500
+        }
+
+        self.mpc = do_mpc.controller.MPC(model)
+        self.mpc.set_param(**setup_mpc)
+        self.mpc.set_tvp_fun(self.tvp_fun1_finishTime())
+
+        w_lterm_dist = 55
+        w_lterm_path = 19
+        w_lterm_avoid = 15
+        w_mterm_dist = 80
+        w_lterm_avoid_obstacle = 200
+
+        w_mterm = 6
+        w_lterm = 1
+
+        mterm = SX(0)  # 10*fabs(model.x['pos_x'] - model.tvp['aim_x']) + 10*fabs(model.x['pos_y'] - model.tvp['aim_y'])
+        lterm = SX(0)
+
+        for i in range(working_robots):
+            mterm += self.robotsPriority[i] * w_mterm_dist * self.MyNorm2((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
+            #mterm += w_mterm_dist*fabs(model.x['pos_x', i] - model.tvp['aim_x', i]) + w_mterm_dist*fabs(model.x['pos_y', i] - model.tvp['aim_y', i])
+            #lterm += w_lterm_dist*fabs(model.x['pos_x', i] - model.tvp['aim_x', i]) \
+            #          + w_lterm_dist*fabs(model.x['pos_y', i] - model.tvp['aim_y', i])
+            lterm += self.robotsPriority[i] * w_lterm_dist * self.MyNorm2((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
+            lterm += self.robotsPriority[i] * w_lterm_path*model.x['distance', i]
+
+
+        for i in range(working_robots):
+            for j in range(working_robots):
+                if i == j:
+                    continue
+                else:
+                    pass
+                    lterm += self.robotsPriority[i] * w_lterm_avoid*self.SaturationFunction(fabs(model.x['pos_x', i] - model.x['pos_x', j]), 2)\
+                             + self.robotsPriority[i] * w_lterm_avoid*self.SaturationFunction(fabs(model.x['pos_y', i] - model.x['pos_y', j]), 2)
+
+        for i in range(working_robots):
+            for j in self.obstacles:
+                lterm += self.robotsPriority[i] * w_lterm_avoid_obstacle*self.SaturationFunction(fabs(model.x['pos_x', i] - j[0]), 12)\
+                    + self.robotsPriority[i] * w_lterm_avoid_obstacle*self.SaturationFunction(fabs(model.x['pos_y', i] - j[1]), 12)
+
+
+        #lterm /= (2*len(self.bots)*w_lterm_dist)+(2*(len(self.bots)-1)*len(self.bots)*w_lterm_avoid)
+        #mterm /= 2*len(self.bots)*w_mterm_dist
+        lterm /= setup_mpc['n_horizon']
+        lterm *= 0.5
+
+        #lterm *= w_lterm / (w_lterm + w_mterm)
+        #mterm *= w_mterm / (w_lterm + w_mterm)
+
+        rterm_v = list()
+        rterm_omega = list()
+
+        for i in range(working_robots):
+            rterm_v.append([0])
+            rterm_omega.append([0])
+
+        self.mpc.set_objective(mterm=mterm, lterm=lterm)
+        self.mpc.set_rterm(v=np.array(rterm_v), omega=np.array(rterm_omega))
+
+        min_x = list()
+        min_y = list()
+        min_theta = list()
+
+        max_x = list()
+        max_y = list()
+        max_theta = list()
+
+        min_v = list()
+        min_omega = list()
+
+        max_v = list()
+        max_omega = list()
+
+        for i in range(working_robots):
+            min_x.append([-3.0])
+            min_y.append([-3.0])
+            min_theta.append([-np.pi])
+
+            max_x.append([3.0])
+            max_y.append([3.0])
+            max_theta.append([np.pi])
+
+            min_v.append([0])
+            min_omega.append([-2])
+
+            max_v.append([0.4])
+            max_omega.append([2])
+
+
+        self.mpc.bounds['lower', '_x', 'pos_x'] = np.array(min_x)
+        self.mpc.bounds['lower', '_x', 'pos_y'] = np.array(min_y)
+        self.mpc.bounds['lower', '_x', 'theta'] = np.array(min_theta)
+
+        self.mpc.bounds['upper', '_x', 'pos_x'] = np.array(max_x)
+        self.mpc.bounds['upper', '_x', 'pos_y'] = np.array(max_y)
+        self.mpc.bounds['upper', '_x', 'theta'] = np.array(max_theta)
+
+        self.mpc.bounds['lower', '_u', 'v'] = np.array(min_v)
+        self.mpc.bounds['lower', '_u', 'omega'] = np.array(min_omega)
+        #bot.mpc.bounds['lower', '_u', 'omega'] = -np.pi
+
+        self.mpc.bounds['upper', '_u', 'v'] = np.array(max_v)
+        self.mpc.bounds['upper', '_u', 'omega'] = np.array(max_omega)
+        #bot.mpc.bounds['lower', '_u', 'omega'] = np.pi
+
+        nl_cons_value_grid = list()
+        for i in range(working_robots):
+            nl_cons_value_grid.append([0.02])
+
+        nl_cons_value_avoid = list()
+        for i in range(working_robots):
+            nl_cons_value_avoid.append([-0.41])
+
+        #nl_cons_value_avoid_obstacles = list()
+        #for i in range(working_robots):
+        #    nl_cons_value_avoid_obstacles.append([-0.5])
+
+        self.mpc.set_nl_cons('grid_shape', model.aux['grid'], np.array(nl_cons_value_grid))
+        self.mpc.set_nl_cons('avoid_robots', -model.aux['avoid'], np.array(nl_cons_value_avoid))
+        #self.mpc.set_nl_cons('avoid_robots_obstacles', -model.aux['avoid_obstacles'], np.array(nl_cons_value_avoid_obstacles))
+
+        self.mpc.setup()
+
+        x0 = self.MPC_calculate_x0_finishTime()
+        self.mpc.x0 = x0
+        self.mpc.set_initial_guess()
+
+    def robotKinematicModel2_finishTime(self):
+        working_robots = 0
+        for i in self.botsFinished:
+            if not i:
+                working_robots += 1
+
+        model_type = 'continuous'
+        model = do_mpc.model.Model(model_type)
+        pos_x = model.set_variable('_x', 'pos_x', shape=(working_robots, 1))
+        pos_y = model.set_variable('_x', 'pos_y', shape=(working_robots, 1))
+        distance = model.set_variable('_x', 'distance', shape=(working_robots, 1))
+
+        v = model.set_variable('_u', 'v', shape=(working_robots, 1))
+        omega = model.set_variable('_u', 'omega', shape=(working_robots, 1))
+
+        aim_x = model.set_variable('_tvp', 'aim_x', shape=(working_robots, 1))
+        aim_y = model.set_variable('_tvp', 'aim_y', shape=(working_robots, 1))
+
+        dpos_x = list()
+        dpos_y = list()
+        ddistance = list()
+        nl_cons_grid = list()
+        nl_cons_avoid = list()
+        nl_cons_avoid_obstacles = list()
+
+        for i in range(working_robots):
+            dpos_x.append(v[i]*cos(omega[i]))
+            dpos_y.append(v[i]*sin(omega[i]))
+            ddistance.append(v[i])
+
+            nl_cons_grid.append(self.functionGrid2(pos_x[i], pos_y[i]))
+            nl_cons_avoid.append(self.functionAvoid(pos_x, pos_y, i, working_robots))
+            nl_cons_avoid_obstacles.append(self.functionAvoid_finishTime(pos_x[i], pos_y[i], self.obstacles))
+
+        model.set_rhs('pos_x', vertcat(*dpos_x))
+        model.set_rhs('pos_y', vertcat(*dpos_y))
+        model.set_rhs('distance', vertcat(*ddistance))
+
+        model.set_expression('grid', vertcat(*nl_cons_grid))
+        model.set_expression('avoid', vertcat(*nl_cons_avoid))
+        model.set_expression('avoid_obstacles', vertcat(*nl_cons_avoid_obstacles))
+
+
+        model.setup()
+
+        return model
+
+    def setupMPC2_finishTime(self, model):
+        working_robots = 0
+        for i in self.botsFinished:
+            if not i:
+                working_robots += 1
+
+        setup_mpc = {
+            'n_horizon': 10,
+            't_step': 0.5,
+            'n_robust': 0,
+            'store_full_solution': True,
+            'nlpsol_opts': {'ipopt.max_iter': 2600, 'ipopt.print_level': 3, 'ipopt.linear_solver': 'ma27'}#, 'ipopt.tol': 10e-2, 'ipopt.print_level': 0, 'ipopt.sb': 'yes', 'print_time': 0}
+            # 'ipopt.max_iter':500 'calc_lam_p':False , 'ipopt.tol': 10e-15, 'ipopt.acceptable_iter': 1000
+        }
+
+        self.mpc = do_mpc.controller.MPC(model)
+        self.mpc.set_param(**setup_mpc)
+        self.mpc.set_tvp_fun(self.tvp_fun1_finishTime)
+
+        w_lterm_dist = 60  # 55
+        w_lterm_path = 22  # 19
+        w_lterm_avoid = 26  # 15
+        w_mterm_dist = 80  # 80
+        w_lterm_avoid_obstacle = 300
+        w_mterm = 6
+        w_lterm = 1
+
+        mterm = SX(0)  # 10*fabs(model.x['pos_x'] - model.tvp['aim_x']) + 10*fabs(model.x['pos_y'] - model.tvp['aim_y'])
+        lterm = SX(0)
+
+        for i in range(working_robots):
+            mterm += self.robotsPriority[i] * w_mterm_dist * self.MyNorm2((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
+            lterm += self.robotsPriority[i] * w_lterm_dist * self.MyNorm2((model.x['pos_x', i], model.x['pos_y', i]), (model.tvp['aim_x', i], model.tvp['aim_y', i]))
+            #mterm += w_mterm_dist*fabs(model.x['pos_x', i] - model.tvp['aim_x', i]) + w_mterm_dist*fabs(model.x['pos_y', i] - model.tvp['aim_y', i])
+            #lterm += w_lterm_dist*fabs(model.x['pos_x', i] - model.tvp['aim_x', i]) \
+            #         + w_lterm_dist*fabs(model.x['pos_y', i] - model.tvp['aim_y', i])
+
+            lterm += self.robotsPriority[i] * w_lterm_path * model.x['distance', i]
+
+        for i in range(working_robots):
+            for j in range(working_robots):
+                if i == j:
+                    continue
+                else:
+                    pass
+                    lterm += self.robotsPriority[i] * w_lterm_avoid*self.SaturationFunction(fabs(model.x['pos_x', i] - model.x['pos_x', j]), 2)\
+                             + self.robotsPriority[i] * w_lterm_avoid*self.SaturationFunction(fabs(model.x['pos_y', i] - model.x['pos_y', j]), 2)
+                    #lterm += -15*sqrt((model.x['pos_x', i] - model.x['pos_x', j])**2 + (model.x['pos_y', i] - model.x['pos_y', j])**2)
+
+        for i in range(working_robots):
+            for j in self.obstacles:
+                lterm += self.robotsPriority[i] * w_lterm_avoid_obstacle*self.SaturationFunction(fabs(model.x['pos_x', i] - j[0]), 12)\
+                    + self.robotsPriority[i] * w_lterm_avoid_obstacle*self.SaturationFunction(fabs(model.x['pos_y', i] - j[1]), 12)
+                mterm += self.robotsPriority[i] * w_lterm_avoid_obstacle * self.SaturationFunction(fabs(model.x['pos_x', i] - j[0]), 12) \
+                    + self.robotsPriority[i] * w_lterm_avoid_obstacle * self.SaturationFunction(fabs(model.x['pos_y', i] - j[1]), 12)
+
+
+        #lterm /= (2*len(self.bots)*w_lterm_dist)+(2*(len(self.bots)-1)*len(self.bots)*w_lterm_avoid)
+        #mterm /= 2*len(self.bots)*w_mterm_dist
+        lterm /= setup_mpc['n_horizon']
+        lterm *= 0.5
+
+        #lterm *= w_lterm / (w_lterm + w_mterm)
+        #mterm *= w_mterm / (w_lterm + w_mterm)
+
+        rterm_v = list()
+        rterm_omega = list()
+
+        for i in range(working_robots):
+            rterm_v.append([0])
+            rterm_omega.append([0])
+
+        self.mpc.set_objective(mterm=mterm, lterm=lterm)
+        self.mpc.set_rterm(v=np.array(rterm_v), omega=np.array(rterm_omega))
+
+        min_x = list()
+        min_y = list()
+
+        max_x = list()
+        max_y = list()
+
+        min_v = list()
+        min_omega = list()
+
+        max_v = list()
+        max_omega = list()
+
+        for i in range(working_robots):
+            min_x.append([-3.0])
+            min_y.append([-3.0])
+
+            max_x.append([3.0])
+            max_y.append([3.0])
+
+            min_v.append([0])
+            min_omega.append([-np.pi])
+
+            max_v.append([0.4])
+            max_omega.append([np.pi])
+
+
+        self.mpc.bounds['lower', '_x', 'pos_x'] = np.array(min_x)
+        self.mpc.bounds['lower', '_x', 'pos_y'] = np.array(min_y)
+
+        self.mpc.bounds['upper', '_x', 'pos_x'] = np.array(max_x)
+        self.mpc.bounds['upper', '_x', 'pos_y'] = np.array(max_y)
+
+        self.mpc.bounds['lower', '_u', 'v'] = np.array(min_v)
+        self.mpc.bounds['lower', '_u', 'omega'] = np.array(min_omega)
+
+        self.mpc.bounds['upper', '_u', 'v'] = np.array(max_v)
+        self.mpc.bounds['upper', '_u', 'omega'] = np.array(max_omega)
+
+        nl_cons_value_grid = list()
+        for i in range(working_robots):
+            nl_cons_value_grid.append([0.02])
+
+        nl_cons_value_avoid = list()
+        for i in range(working_robots):
+            nl_cons_value_avoid.append([-0.41]) #-0.41
+
+        nl_cons_value_avoid_obstacles = list()
+        for i in range(working_robots):
+            nl_cons_value_avoid_obstacles.append([-0.41]) #-0.29
+
+        self.mpc.set_nl_cons('grid_shape', model.aux['grid'], np.array(nl_cons_value_grid))
+        self.mpc.set_nl_cons('avoid_robots', -model.aux['avoid'], np.array(nl_cons_value_avoid))
+        self.mpc.set_nl_cons('avoid_robots_obstacles', -model.aux['avoid_obstacles'], np.array(nl_cons_value_avoid_obstacles))
+
+        self.mpc.setup()
+
+        x0 = self.MPC_calculate_x0_finishTime()
         self.mpc.x0 = x0
         self.mpc.set_initial_guess()
 
@@ -2211,128 +2695,39 @@ class Controller:
 
         self.planning_cycle_counter += 1
 
-        x0 = list()
-        for i in range(len(self.bots)):
-            conv_pos = self.ConvertOnRealCoordinates(self.bots[i].robotPosition[0], self.bots[i].robotPosition[1])
-            x0.append(conv_pos[0])
+        if not self.finishTime:
+            x0 = self.MPC_calculate_x0()
+            self.u0 = self.mpc.make_step(x0)
 
-        for i in range(len(self.bots)):
-            conv_pos = self.ConvertOnRealCoordinates(self.bots[i].robotPosition[0], self.bots[i].robotPosition[1])
-            x0.append(conv_pos[1])
-
-        if self.modelType == 2:
-            pass
+            for i in range(len(self.bots)):
+                self.bots[i].newPathStep = True
 
         else:
-            for i in range(len(self.bots)):
-                x0.append(self.bots[i].globalOrientation)
+            x0 = self.MPC_calculate_x0_finishTime()
+            self.u0 = self.mpc.make_step(x0)
 
-        for i in range(len(self.bots)):
-            x0.append(self.bots[i].pathLength)
-
-        x0 = np.array(x0).reshape(-1, 1)
-
-        self.mpc.x0 = x0
-        self.u0 = self.mpc.make_step(x0)
-        '''
-        mpl.rcParams['font.size'] = 18
-        mpl.rcParams['lines.linewidth'] = 3
-        mpl.rcParams['axes.grid'] = True
-
-        mpc_graphics = do_mpc.graphics.Graphics(self.mpc.data)
-
-        fig, ax = plt.subplots(2, sharex=True, figsize=(16, 9))
-        fig.align_ylabels()
-
-        for g in [mpc_graphics]:
-            g.add_line(var_type='_x', var_name='pos_x', axis=ax[0])
-            g.add_line(var_type='_x', var_name='pos_y', axis=ax[0])
-            g.add_line(var_type='_x', var_name='theta', axis=ax[0])
-
-            g.add_line(var_type='_u', var_name='v', axis=ax[1])
-            g.add_line(var_type='_u', var_name='omega', axis=ax[1])
-
-        ax[0].set_ylabel('location')
-        ax[1].set_ylabel('velocity')
-        ax[1].set_xlabel('time [s]')
-
-        mpc_graphics.plot_predictions()
-        mpc_graphics.reset_axes()
-        
-        fig.show()
-        input()
-        '''
-
-        '''
-        pre_x = self.mpc.data.prediction(('_x', 'pos_x'))
-        pre_y = self.mpc.data.prediction(('_x', 'pos_y'))
-        distance = self.mpc.data.prediction(('_x', 'distance'))
-
-        pre_pos = []
-        pre_distance = []
-        for j in range(len(self.bots)):
-            pre_pos.append([])
-            pre_distance.append([])
-            for i in range(len(pre_x[j])):
-                pre_pos[j].append((pre_x[j][i][0], pre_y[j][i][0]))
-                pre_distance[j].append(distance[j][i][0])
-
-        w_lterm_dist = 55
-        w_lterm_path = 10
-        w_lterm_avoid = 15
-        w_mterm_dist = 80
-        w_mterm = 6
-        w_lterm = 1
-
-        mterm = 0
-        for i in range(len(self.bots)):
-            mterm += w_mterm_dist*abs(pre_pos[i][len(pre_pos[i])-1][0] - self.bots[i].aimPosition[0]) + w_mterm_dist*abs(
-                pre_pos[i][len(pre_pos[i])-1][1] - self.bots[i].aimPosition[1])
-
-        #mterm /= 2*len(self.bots)*w_mterm_dist
-
-        lterm = []
-        for k in range(len(pre_pos[0])-1):
-            lterm.append(0)
-            for i in range(len(self.bots)):
-                lterm[k] += w_lterm_dist*abs(pre_pos[i][k][0] - self.bots[i].aimPosition[0]) \
-                          + w_lterm_dist*abs(pre_pos[i][k][1] - self.bots[i].aimPosition[1])
-
-                #lterm += self.Norm2([model.x['pos_x', i], model.x['pos_y', i]], [model.tvp['aim_x', i],  model.tvp['aim_y', i]])
-                lterm[k] += w_lterm_path * pre_distance[i][k]
-
-            for i in range(len(self.bots)):
-                for j in range(len(self.bots)):
-                    if i == j:
-                        continue
-                    else:
-                        pass
-                        lterm[k] += w_lterm_avoid*self.SaturationFunction(abs(pre_pos[i][k][0] - pre_pos[j][k][0]), 2)\
-                                 + w_lterm_avoid*self.SaturationFunction(abs(pre_pos[i][k][1] - pre_pos[j][k][1]), 2)
-                        #lterm += -15*sqrt((model.x['pos_x', i] - model.x['pos_x', j])**2 + (model.x['pos_y', i] - model.x['pos_y', j])**2)
-
-
-            #lterm[k] /= (2*len(self.bots)*w_lterm_dist)+(2*(len(self.bots)-1)*len(self.bots)*w_lterm_avoid)
-
-            lterm[k] /= len(pre_pos[i])-1
-            lterm[k] *= 0.5
-
-            #lterm[k] *= w_lterm / (w_lterm + w_mterm)
-        #mterm *= w_mterm / (w_lterm + w_mterm)
-
-        print('\033[91mCost function value: {}\033[0m'.format((sum(lterm)+mterm)))
-
-        print('Controll: {}'.format(self.u0))
-        '''
-
-        for i in range(len(self.bots)):
-            self.bots[i].newPathStep = True
+            for i in range(len(self.botsFinished)):
+                if not self.botsFinished[i]:
+                    self.bots[i].newPathStep = True
 
         self.Logger()
 
     def MakeOneStep(self, robotNumber):
         robotState = self.bots[robotNumber - 1].robotState
         if robotState == RobotState.READY:
+            working_robots = 0
+            for i in self.botsFinished:
+                if not i:
+                    working_robots += 1
+
+            conv_botNumer = 0
+            for i in range(len(self.botsFinished)):
+                if i == robotNumber - 1:
+                    break
+
+                if not self.botsFinished[i]:
+                    conv_botNumer += 1
+
             self.botsMakeStep[robotNumber - 1] = True
             self.bots[robotNumber - 1].robotState = RobotState.FORWARD
 
@@ -2342,13 +2737,13 @@ class Controller:
 
             dtime = 0.5
             if self.modelType == 2:
-                est_theta = self.u0[len(self.bots) + (robotNumber - 1)]
+                est_theta = self.u0[working_robots + conv_botNumer]
             else:
-                est_theta = self.bots[robotNumber - 1].globalOrientation + dtime * self.u0[len(self.bots)+(robotNumber - 1)]
+                est_theta = self.bots[robotNumber - 1].globalOrientation + dtime * self.u0[working_robots+conv_botNumer]
 
 
-            x = conv_pos[0] + dtime * self.u0[(robotNumber - 1)] * cos(est_theta)
-            y = conv_pos[1] + dtime * self.u0[(robotNumber - 1)] * sin(est_theta)
+            x = conv_pos[0] + dtime * self.u0[conv_botNumer] * cos(est_theta)
+            y = conv_pos[1] + dtime * self.u0[conv_botNumer] * sin(est_theta)
 
             neighbors = self.GetNeighbors(self.bots[robotNumber - 1].robotPosition)
             neighbors.append(self.bots[robotNumber-1].robotPosition)
@@ -2362,8 +2757,8 @@ class Controller:
             pre_y = self.mpc.data.prediction(('_x', 'pos_y'))
 
             pre_pos = []
-            for i in range(len(pre_x[robotNumber - 1])):
-                pre_pos.append((pre_x[robotNumber - 1][i][0], pre_y[robotNumber - 1][i][0]))
+            for i in range(len(pre_x[conv_botNumer])):
+                pre_pos.append((pre_x[conv_botNumer][i][0], pre_y[conv_botNumer][i][0]))
                 #print('Robot: {}, prediction {}: {}, fg: {:.5}'.format(robotNumber, i, pre_pos[i], self.functionGrid2(pre_pos[i][0], pre_pos[i][1])))
                 #print('Norm2: {:.5}'.format(self.MyNorm2((current_x, current_y), (pre_pos[i][0], pre_pos[i][1]))))
 
@@ -2375,22 +2770,22 @@ class Controller:
             pre_pos[1] = (x[0], y[0])
             self.bots[robotNumber - 1].nextStep = self.bots[robotNumber - 1].robotPosition
 
-            print('Current pos: ', (current_x, current_y))
+            #print('Current pos: ', (current_x, current_y))
 
             current_aim = self.ConvertOnRealCoordinates(self.bots[robotNumber - 1].aimPosition[0],
                                                         self.bots[robotNumber - 1].aimPosition[1])
             current_aim_x = current_aim[0]
             current_aim_y = current_aim[1]
 
-            print('Aim: {}, Norm2 to aim: {:.5}'.format(current_aim, self.MyNorm2((current_x, current_y), (current_aim_x, current_aim_y))))
+            #print('Aim: {}, Norm2 to aim: {:.5}'.format(current_aim, self.MyNorm2((current_x, current_y), (current_aim_x, current_aim_y))))
             pre_length = len(pre_pos) - 1
 
             for i in range(1, pre_length):
                 temp_x = pre_pos[i][0]
                 temp_y = pre_pos[i][1]
 
-                print('Temp pos[{}]: {}'.format(i, (temp_x, temp_y)))
-                print('Difference pos[{}]: {}'.format(i, (abs(current_x - temp_x), abs(current_y - temp_y))))
+                #print('Temp pos[{}]: {}'.format(i, (temp_x, temp_y)))
+                #print('Difference pos[{}]: {}'.format(i, (abs(current_x - temp_x), abs(current_y - temp_y))))
 
                 if abs(current_x - temp_x) >= abs(current_y - temp_y):
                     if temp_x > current_x:
@@ -2399,7 +2794,7 @@ class Controller:
                         if neighbors_dist[2] != None:
                             threshold = neighbors_dist[2] / 2
 
-                        print('Top threshold: ', current_x + threshold)
+                        #print('Top threshold: ', current_x + threshold)
 
                         if temp_x > current_x + threshold:
                             if neighbors[2] == 1:
@@ -2407,18 +2802,23 @@ class Controller:
                                 self.bots[robotNumber - 1].nextStep[0], self.bots[robotNumber - 1].nextStep[1] - 1)
                                 break
                             else:
-                                print('neighbors_value 2: ', neighbors_value[2])
-                                print('Robot {}, next step: {}, steps {}'.format(neighbors_value[2], self.bots[neighbors_value[2] - 1].nextStep, self.botsMakeStep[neighbors_value[2] - 1]))
+                                #print('neighbors_value 2: ', neighbors_value[2])
+                                #print('Robot {}, next step: {}, steps {}'.format(neighbors_value[2], self.bots[neighbors_value[2] - 1].nextStep, self.botsMakeStep[neighbors_value[2] - 1]))
 
                                 if neighbors_value[2] > 0 and not self.botsFinished[neighbors_value[2] - 1]:
                                     if self.bots[neighbors_value[2] - 1].nextStep != (
                                             self.bots[robotNumber - 1].nextStep[0],
                                             self.bots[robotNumber - 1].nextStep[1] - 1) or \
                                             not self.botsMakeStep[neighbors_value[2] - 1]:
-                                        self.waitOnAllRobots = True
-                                        self.botsMakeStep[robotNumber - 1] = False
-                                        self.bots[robotNumber - 1].robotState = RobotState.READY
-                                        return
+
+                                        if not neighbors_value[2] in self.waitingBots[robotNumber]:
+                                            self.waitingBots[neighbors_value[2]].append(robotNumber)
+
+                                            self.waitOnAllRobots = True
+                                            self.botsMakeStep[robotNumber - 1] = False
+                                            self.bots[robotNumber - 1].robotState = RobotState.READY
+                                            return
+
                                 pre_length = i
                                 break
 
@@ -2428,7 +2828,7 @@ class Controller:
                         if neighbors_dist[0] != None:
                             threshold = neighbors_dist[0] / 2
 
-                        print('Bottom threshold: ', current_x - threshold)
+                        #print('Bottom threshold: ', current_x - threshold)
 
                         if temp_x < current_x - threshold:
                             if neighbors[0] == 1:
@@ -2436,19 +2836,23 @@ class Controller:
                                 self.bots[robotNumber - 1].nextStep[0], self.bots[robotNumber - 1].nextStep[1] + 1)
                                 break
                             else:
-                                print('neighbors_value 0: ', neighbors_value[0])
-                                print('Robot {}, next step: {}'.format(neighbors_value[0],
-                                                                       self.bots[neighbors_value[0] - 1].nextStep))
+                                #print('neighbors_value 0: ', neighbors_value[0])
+                                #print('Robot {}, next step: {}'.format(neighbors_value[0],
+                                #                                       self.bots[neighbors_value[0] - 1].nextStep))
 
                                 if neighbors_value[0] > 0 and not self.botsFinished[neighbors_value[0] - 1]:
                                     if self.bots[neighbors_value[0] - 1].nextStep != (
                                             self.bots[robotNumber - 1].nextStep[0],
                                             self.bots[robotNumber - 1].nextStep[1] + 1) or \
                                             not self.botsMakeStep[neighbors_value[0] - 1]:
-                                        self.waitOnAllRobots = True
-                                        self.botsMakeStep[robotNumber - 1] = False
-                                        self.bots[robotNumber - 1].robotState = RobotState.READY
-                                        return
+
+                                        if not neighbors_value[0] in self.waitingBots[robotNumber]:
+                                            self.waitingBots[neighbors_value[0]].append(robotNumber)
+
+                                            self.waitOnAllRobots = True
+                                            self.botsMakeStep[robotNumber - 1] = False
+                                            self.bots[robotNumber - 1].robotState = RobotState.READY
+                                            return
                                 pre_length = i
                                 break
                 else:
@@ -2458,7 +2862,7 @@ class Controller:
                         if neighbors_dist[3] != None:
                             threshold = neighbors_dist[3] / 2
 
-                        print('Left threshold: ', current_y + threshold)
+                        #print('Left threshold: ', current_y + threshold)
 
                         if temp_y > current_y + threshold:
                             if neighbors[3] == 1:
@@ -2466,19 +2870,23 @@ class Controller:
                                 self.bots[robotNumber - 1].nextStep[0] - 1, self.bots[robotNumber - 1].nextStep[1])
                                 break
                             else:
-                                print('neighbors_value 3: ', neighbors_value[3])
-                                print('Robot {}, next step: {}'.format(neighbors_value[3],
-                                                                       self.bots[neighbors_value[3] - 1].nextStep))
+                                #print('neighbors_value 3: ', neighbors_value[3])
+                                #print('Robot {}, next step: {}'.format(neighbors_value[3],
+                                #                                       self.bots[neighbors_value[3] - 1].nextStep))
 
                                 if neighbors_value[3] > 0 and not self.botsFinished[neighbors_value[3] - 1]:
                                     if self.bots[neighbors_value[3] - 1].nextStep != (
                                             self.bots[robotNumber - 1].nextStep[0] - 1,
                                             self.bots[robotNumber - 1].nextStep[1]) or \
                                             not self.botsMakeStep[neighbors_value[3] - 1]:
-                                        self.waitOnAllRobots = True
-                                        self.botsMakeStep[robotNumber - 1] = False
-                                        self.bots[robotNumber - 1].robotState = RobotState.READY
-                                        return
+
+                                        if not neighbors_value[3] in self.waitingBots[robotNumber]:
+                                            self.waitingBots[neighbors_value[3]].append(robotNumber)
+
+                                            self.waitOnAllRobots = True
+                                            self.botsMakeStep[robotNumber - 1] = False
+                                            self.bots[robotNumber - 1].robotState = RobotState.READY
+                                            return
                                 pre_length = i
                                 break
                     else:
@@ -2487,7 +2895,7 @@ class Controller:
                         if neighbors_dist[1] != None:
                             threshold = neighbors_dist[1] / 2
 
-                        print('Right threshold: ', current_y - threshold)
+                        #print('Right threshold: ', current_y - threshold)
 
                         if temp_y < current_y - threshold:
                             if neighbors[1] == 1:
@@ -2495,19 +2903,23 @@ class Controller:
                                 self.bots[robotNumber - 1].nextStep[0] + 1, self.bots[robotNumber - 1].nextStep[1])
                                 break
                             else:
-                                print('neighbors_value 1: ', neighbors_value[1])
-                                print('Robot {}, next step: {}'.format(neighbors_value[1],
-                                                                       self.bots[neighbors_value[1] - 1].nextStep))
+                                #print('neighbors_value 1: ', neighbors_value[1])
+                                #print('Robot {}, next step: {}'.format(neighbors_value[1],
+                                #                                       self.bots[neighbors_value[1] - 1].nextStep))
 
                                 if neighbors_value[1] > 0 and not self.botsFinished[neighbors_value[1] - 1]:
                                     if self.bots[neighbors_value[1] - 1].nextStep != (
                                             self.bots[robotNumber - 1].nextStep[0] + 1,
                                             self.bots[robotNumber - 1].nextStep[1]) or \
                                             not self.botsMakeStep[neighbors_value[1] - 1]:
-                                        self.waitOnAllRobots = True
-                                        self.botsMakeStep[robotNumber - 1] = False
-                                        self.bots[robotNumber - 1].robotState = RobotState.READY
-                                        return
+
+                                        if not neighbors_value[1] in self.waitingBots[robotNumber]:
+                                            self.waitingBots[neighbors_value[1]].append(robotNumber)
+
+                                            self.waitOnAllRobots = True
+                                            self.botsMakeStep[robotNumber - 1] = False
+                                            self.bots[robotNumber - 1].robotState = RobotState.READY
+                                            return
                                 pre_length = i
                                 break
 
@@ -2533,9 +2945,9 @@ class Controller:
                                         self.bots[robotNumber - 1].nextStep[1] - 1)
                                     break
                                 else:
-                                    print('neighbors_value 2: ', neighbors_value[2])
-                                    print('Robot {}, next step: {}'.format(neighbors_value[2],
-                                                                           self.bots[neighbors_value[2] - 1].nextStep))
+                                    #print('neighbors_value 2: ', neighbors_value[2])
+                                    #print('Robot {}, next step: {}'.format(neighbors_value[2],
+                                    #                                       self.bots[neighbors_value[2] - 1].nextStep))
                                     '''
                                     if neighbors_value[2] > 0 and not self.botsFinished[neighbors_value[2] - 1]:
                                         if self.bots[neighbors_value[2] - 1].nextStep != (
@@ -2562,9 +2974,9 @@ class Controller:
                                         self.bots[robotNumber - 1].nextStep[1] + 1)
                                     break
                                 else:
-                                    print('neighbors_value 0: ', neighbors_value[0])
-                                    print('Robot {}, next step: {}'.format(neighbors_value[0],
-                                                                           self.bots[neighbors_value[0] - 1].nextStep))
+                                    #print('neighbors_value 0: ', neighbors_value[0])
+                                    #print('Robot {}, next step: {}'.format(neighbors_value[0],
+                                    #                                       self.bots[neighbors_value[0] - 1].nextStep))
                                     '''
                                     if neighbors_value[0] > 0 and not self.botsFinished[neighbors_value[0] - 1]:
                                         if self.bots[neighbors_value[0] - 1].nextStep != (
@@ -2591,9 +3003,9 @@ class Controller:
                                         self.bots[robotNumber - 1].nextStep[1])
                                     break
                                 else:
-                                    print('neighbors_value 3: ', neighbors_value[3])
-                                    print('Robot {}, next step: {}'.format(neighbors_value[3],
-                                                                           self.bots[neighbors_value[3] - 1].nextStep))
+                                    #print('neighbors_value 3: ', neighbors_value[3])
+                                    #print('Robot {}, next step: {}'.format(neighbors_value[3],
+                                    #                                       self.bots[neighbors_value[3] - 1].nextStep))
                                     '''
                                     if neighbors_value[3] > 0 and not self.botsFinished[neighbors_value[3] - 1]:
                                         if self.bots[neighbors_value[3] - 1].nextStep != (
@@ -2619,9 +3031,9 @@ class Controller:
                                         self.bots[robotNumber - 1].nextStep[1])
                                     break
                                 else:
-                                    print('neighbors_value 1: ', neighbors_value[1])
-                                    print('Robot {}, next step: {}'.format(neighbors_value[1],
-                                                                           self.bots[neighbors_value[1] - 1].nextStep))
+                                    #print('neighbors_value 1: ', neighbors_value[1])
+                                    #print('Robot {}, next step: {}'.format(neighbors_value[1],
+                                    #                                       self.bots[neighbors_value[1] - 1].nextStep))
                                     '''
                                     if neighbors_value[1] > 0 and not self.botsFinished[neighbors_value[1] - 1]:
                                         if self.bots[neighbors_value[1] - 1].nextStep != (
@@ -2643,7 +3055,7 @@ class Controller:
 
             if self.bots[robotNumber - 1].stopCounter >= random.randint(3, 6):
                 neighbors = self.GetNeighbors(self.bots[robotNumber - 1].robotPosition)
-                '''
+
                 if len(neighbors) > 0:
                     min_dist = np.inf
                     min_nei = 0
@@ -2662,7 +3074,12 @@ class Controller:
                 '''
                 if len(neighbors) > 0:
                     self.bots[robotNumber - 1].nextStep = neighbors[random.randint(0, len(neighbors)-1)]
-                
+                '''
+
+                for i in neighbors:
+                    if i == self.bots[robotNumber - 1].aimPosition:
+                        self.bots[robotNumber - 1].nextStep = i
+                        break
 
             '''
             neighbors_weight = [0]*len(neighbors)
@@ -2855,7 +3272,7 @@ class Controller:
             '''
 
 
-            print('Controll: v: {}, omega: {}'.format(self.u0[(robotNumber - 1)], self.u0[len(self.bots)+(robotNumber - 1)]))
+            print('Controll: v: {}, omega: {}'.format(self.u0[conv_botNumer], self.u0[working_robots+conv_botNumer]))
 
             print('x: ', x)
             print('y: ', y)
@@ -2930,10 +3347,21 @@ class Controller:
         pre_y = self.mpc.data.prediction(('_x', 'pos_y'))
 
         pre_pos = []
-        for j in range(len(self.bots)):
+        working_robots = 0
+        for i in self.botsFinished:
+            if not i:
+                working_robots += 1
+
+        k = 0
+        for j in range(len(self.botsFinished)):
             pre_pos.append([])
-            for i in range(len(pre_x[j])):
-                pre_pos[j].append((pre_x[j][i][0], pre_y[j][i][0]))
+            if not self.botsFinished[j]:
+                for i in range(len(pre_x[k])):
+                    pre_pos[j].append((pre_x[k][i][0], pre_y[k][i][0]))
+                k += 1
+            else:
+                conv = self.ConvertOnRealCoordinates(self.bots[j].robotPosition[0], self.bots[j].robotPosition[1])
+                pre_pos[j].append(conv)
 
 
 
@@ -3072,10 +3500,21 @@ class Controller:
         pre_y = self.mpc.data.prediction(('_x', 'pos_y'))
 
         pre_pos = []
-        for j in range(len(self.bots)):
+        working_robots = 0
+        for i in self.botsFinished:
+            if not i:
+                working_robots += 1
+
+        k = 0
+        for j in range(len(self.botsFinished)):
             pre_pos.append([])
-            for i in range(len(pre_x[j])):
-                pre_pos[j].append((pre_x[j][i][0], pre_y[j][i][0]))
+            if not self.botsFinished[j]:
+                for i in range(len(pre_x[k])):
+                    pre_pos[j].append((pre_x[k][i][0], pre_y[k][i][0]))
+                k += 1
+            else:
+                conv = self.ConvertOnRealCoordinates(self.bots[j].robotPosition[0], self.bots[j].robotPosition[1])
+                pre_pos[j].append(conv)
 
         path_length = []
         position = []
